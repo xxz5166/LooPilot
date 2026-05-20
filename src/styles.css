@@ -490,6 +490,73 @@ button {
   white-space: nowrap;
 }
 
+.git-changes {
+  display: grid;
+  gap: 8px;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.git-changes summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+
+.git-changes summary::-webkit-details-marker {
+  display: none;
+}
+
+.git-change-total,
+.git-change-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.git-change-list {
+  display: grid;
+  max-height: 220px;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+}
+
+.git-change-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 34px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.git-change-row > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-change-delta small,
+.git-change-more {
+  color: var(--muted);
+}
+
+.git-added {
+  color: var(--green);
+}
+
+.git-deleted {
+  color: var(--red);
+}
+
 .timeline {
   display: grid;
   gap: 12px;
@@ -767,6 +834,7 @@ button {
 }
 
 .action-prompt,
+.git-changes,
 .outbox,
 .empty-state {
   width: 100%;

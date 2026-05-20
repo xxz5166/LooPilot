@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { getStateDir } from "./state.mjs";
 
 const CODEX_HOME = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
@@ -14,9 +15,12 @@ const MAX_PREVIEW_CHARS = 320;
 const DEFAULT_DETAIL_ITEMS = 120;
 const MAX_DETAIL_ITEMS = 300;
 const MAX_SESSION_LIMIT = 120;
+const MAX_GIT_CHANGE_FILES = 20;
+const GIT_CHANGES_CACHE_TTL_MS = 1500;
 const JSON_ESCAPED_PROMPT_MARKER_PATTERN = /JSON[_ ]ESCAPED[_ ]PROMPT:/i;
 const JSON_ESCAPED_PROMPT_PREFIX = "The exact task prompt is encoded below as a JSON string with Unicode escapes.";
 const parseCache = new Map();
+const gitChangesCache = new Map();
 
 export function getCodexHome() {
   return CODEX_HOME;
@@ -69,7 +73,8 @@ export function getSessionDetail(id, options = {}) {
     isSubagent: parsed.threadSource === "subagent",
     status: parsed.status === "waiting" && !pendingAction ? "idle" : parsed.status,
     pendingAction,
-    outbox
+    outbox,
+    gitChanges: gitChangesForCwd(parsed.cwd || summary.cwd)
   };
 }
 
@@ -403,6 +408,117 @@ function readJsonl(filePath) {
       .filter(Boolean);
   } catch {
     return [];
+  }
+}
+
+function gitChangesForCwd(cwd) {
+  const cacheKey = String(cwd || "");
+  const cached = gitChangesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < GIT_CHANGES_CACHE_TTL_MS) return cached.value;
+  const repoRoot = gitOutput(cwd, ["rev-parse", "--show-toplevel"]);
+  if (!repoRoot) return rememberGitChanges(cacheKey, null);
+  const status = gitStatusMap(repoRoot);
+  const files = [];
+  let additions = 0;
+  let deletions = 0;
+
+  for (const line of gitOutput(repoRoot, ["diff", "--numstat", "HEAD", "--"]).split(/\r?\n/).filter(Boolean)) {
+    const [added, deleted, ...pathParts] = line.split("\t");
+    const filePath = pathParts.join("\t");
+    if (!filePath) continue;
+    const normalized = normalizeGitPath(filePath);
+    const addedCount = parseGitCount(added);
+    const deletedCount = parseGitCount(deleted);
+    additions += addedCount || 0;
+    deletions += deletedCount || 0;
+    files.push({
+      path: normalized,
+      additions: addedCount,
+      deletions: deletedCount,
+      status: status.get(normalized) || "modified"
+    });
+  }
+
+  for (const [filePath, fileStatus] of status) {
+    if (fileStatus !== "untracked" || files.some((file) => file.path === filePath)) continue;
+    const addedCount = countTextLines(path.join(repoRoot, filePath));
+    additions += addedCount || 0;
+    files.push({
+      path: filePath,
+      additions: addedCount,
+      deletions: 0,
+      status: "untracked"
+    });
+  }
+
+  if (!files.length) return rememberGitChanges(cacheKey, null);
+  return rememberGitChanges(cacheKey, {
+    root: repoRoot,
+    totalFiles: files.length,
+    additions,
+    deletions,
+    files: files.slice(0, MAX_GIT_CHANGE_FILES),
+    hasMore: files.length > MAX_GIT_CHANGE_FILES
+  });
+}
+
+function rememberGitChanges(key, value) {
+  if (gitChangesCache.size > 200) gitChangesCache.clear();
+  gitChangesCache.set(key, { at: Date.now(), value });
+  return value;
+}
+
+function gitOutput(cwd, args) {
+  if (!cwd || !fs.existsSync(cwd)) return "";
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024,
+    timeout: 2000,
+    windowsHide: true
+  });
+  if (result.status !== 0) return "";
+  return String(result.stdout || "").trim();
+}
+
+function gitStatusMap(repoRoot) {
+  const status = new Map();
+  for (const line of gitOutput(repoRoot, ["status", "--porcelain=v1", "--untracked-files=normal"]).split(/\r?\n/).filter(Boolean)) {
+    const code = line.slice(0, 2);
+    const rawPath = line.slice(3);
+    const filePath = normalizeGitPath(rawPath.includes(" -> ") ? rawPath.split(" -> ").pop() : rawPath);
+    if (!filePath) continue;
+    status.set(filePath, code === "??" ? "untracked" : statusLabel(code));
+  }
+  return status;
+}
+
+function statusLabel(code) {
+  if (code.includes("A")) return "added";
+  if (code.includes("D")) return "deleted";
+  if (code.includes("R")) return "renamed";
+  if (code.includes("C")) return "copied";
+  return "modified";
+}
+
+function normalizeGitPath(value) {
+  return String(value || "").replace(/^"|"$/g, "").replace(/\\/g, "/").trim();
+}
+
+function parseGitCount(value) {
+  const count = Number(value);
+  return Number.isFinite(count) ? count : null;
+}
+
+function countTextLines(filePath) {
+  try {
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile() || stat.size > 512 * 1024) return null;
+    const text = fs.readFileSync(filePath, "utf8");
+    if (text.includes("\u0000")) return null;
+    return text ? text.split(/\r?\n/).length - (text.endsWith("\n") ? 1 : 0) : 0;
+  } catch {
+    return null;
   }
 }
 

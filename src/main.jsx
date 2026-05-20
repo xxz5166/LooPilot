@@ -708,6 +708,7 @@ function SessionSurface({ session, authToken, backendUrl }) {
         <Metric icon={<TerminalSquare size={14} />} label="工具" value={session.toolCount || 0} />
         <Metric icon={<Clock3 size={14} />} label="更新" value={formatTime(session.updatedAt)} />
       </div>
+      {session.gitChanges?.totalFiles > 0 && <GitChanges changes={session.gitChanges} />}
       {session.pendingAction && <ActionPrompt session={session} authToken={authToken} backendUrl={backendUrl} />}
       <div className="timeline">
         {(session.timeline || []).map((item, index) => (
@@ -759,6 +760,33 @@ function RunningIndicator() {
       <span className="thinking-dot" />
       <strong>Codex 正在运行</strong>
     </div>
+  );
+}
+
+function GitChanges({ changes }) {
+  return (
+    <details className="git-changes" open>
+      <summary>
+        <span>{changes.totalFiles} 个文件已更改</span>
+        <span className="git-change-total">
+          <span className="git-added">+{changes.additions || 0}</span>
+          <span className="git-deleted">-{changes.deletions || 0}</span>
+        </span>
+      </summary>
+      <div className="git-change-list">
+        {(changes.files || []).map((file) => (
+          <div className="git-change-row" key={`${file.path}-${file.status}`}>
+            <span>{file.path}</span>
+            <span className="git-change-delta">
+              {file.status === "untracked" && <small>新增</small>}
+              <span className="git-added">+{formatGitCount(file.additions)}</span>
+              <span className="git-deleted">-{formatGitCount(file.deletions)}</span>
+            </span>
+          </div>
+        ))}
+        {changes.hasMore && <small className="git-change-more">还有更多文件未显示</small>}
+      </div>
+    </details>
   );
 }
 
@@ -1720,6 +1748,10 @@ function formatTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "--";
   return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function formatGitCount(value) {
+  return Number.isFinite(Number(value)) ? String(value) : "bin";
 }
 
 if ("serviceWorker" in navigator) {
