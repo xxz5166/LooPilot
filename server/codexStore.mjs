@@ -75,7 +75,9 @@ export function getSessionDetail(id, options = {}) {
     status: parsed.status === "waiting" && !pendingAction ? "idle" : parsed.status,
     pendingAction,
     outbox,
-    gitChanges: gitChangesForCwd(cwd) || gitCommittedChangesForCwd(cwd, parsed.commitHash)
+    gitChanges: patchChangesForCwd(cwd, parsed.patchChanges)
+      || gitChangesForCwd(cwd)
+      || gitCommittedChangesForCwd(cwd, parsed.commitHash)
   };
 }
 
@@ -216,6 +218,7 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
   let pendingAction = null;
   let lastOutput = "";
   let commitHash = "";
+  let patchChanges = null;
   let messageCount = 0;
   let toolCount = 0;
   let updatedAt = stat?.mtime?.toISOString();
@@ -256,6 +259,9 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
           stats.outputTokens = usage.output_tokens || stats.outputTokens;
           stats.totalTokens = usage.total_tokens || stats.totalTokens;
         }
+      }
+      if (eventType === "patch_apply_end" && row.payload?.success) {
+        patchChanges = mergePatchChanges(patchChanges, row.payload);
       }
       if (eventType && eventType !== "token_count") {
         progress.push({ type: eventType, at: row.timestamp });
@@ -335,6 +341,7 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
     progress: progress.slice(-5),
     pendingAction,
     commitHash,
+    patchChanges,
     lastOutput: clip(lastOutput, MAX_PREVIEW_CHARS),
     messageCount,
     toolCount,
@@ -413,6 +420,59 @@ function readJsonl(filePath) {
   } catch {
     return [];
   }
+}
+
+function mergePatchChanges(current, payload) {
+  const turnId = payload?.turn_id || "";
+  const files = current?.turnId === turnId ? new Map(current.files.map((file) => [file.path, { ...file }])) : new Map();
+  for (const [filePath, change] of Object.entries(payload?.changes || {})) {
+    const stats = diffLineStats(change?.unified_diff || "");
+    if (!stats.additions && !stats.deletions) continue;
+    const normalized = normalizeChangePath(filePath);
+    if (!normalized) continue;
+    const existing = files.get(normalized) || {
+      path: normalized,
+      additions: 0,
+      deletions: 0,
+      status: change?.type || "modified"
+    };
+    existing.additions += stats.additions;
+    existing.deletions += stats.deletions;
+    existing.status = change?.type || existing.status;
+    files.set(normalized, existing);
+  }
+  if (!files.size) return current;
+  return {
+    source: "codex-patch",
+    turnId,
+    files: [...files.values()]
+  };
+}
+
+function patchChangesForCwd(cwd, patchChanges) {
+  const files = patchChanges?.files || [];
+  if (!files.length) return null;
+  const gitRoot = gitOutput(cwd, ["rev-parse", "--show-toplevel"]);
+  const root = gitRoot || cwd;
+  const rootCandidates = [gitRoot, cwd].filter(Boolean);
+  const normalizedFiles = files
+    .map((file) => ({
+      ...file,
+      path: normalizeChangePath(file.path, rootCandidates)
+    }))
+    .filter((file) => file.path);
+  if (!normalizedFiles.length) return null;
+  const additions = normalizedFiles.reduce((total, file) => total + (file.additions || 0), 0);
+  const deletions = normalizedFiles.reduce((total, file) => total + (file.deletions || 0), 0);
+  return {
+    source: patchChanges.source || "codex-patch",
+    root,
+    totalFiles: normalizedFiles.length,
+    additions,
+    deletions,
+    files: normalizedFiles.slice(0, MAX_GIT_CHANGE_FILES),
+    hasMore: normalizedFiles.length > MAX_GIT_CHANGE_FILES
+  };
 }
 
 function gitChangesForCwd(cwd) {
@@ -555,9 +615,31 @@ function normalizeGitPath(value) {
   return String(value || "").replace(/^"|"$/g, "").replace(/\\/g, "/").trim();
 }
 
+function normalizeChangePath(value, roots = []) {
+  const normalized = normalizeGitPath(value);
+  if (!normalized) return "";
+  const rootList = Array.isArray(roots) ? roots : [roots];
+  for (const root of rootList) {
+    const normalizedRoot = normalizeGitPath(root);
+    if (normalizedRoot && normalized.toLowerCase().startsWith(`${normalizedRoot.toLowerCase()}/`)) {
+      return normalized.slice(normalizedRoot.length + 1);
+    }
+  }
+  return normalized;
+}
+
 function parseGitCount(value) {
   const count = Number(value);
   return Number.isFinite(count) ? count : null;
+}
+
+function diffLineStats(diff) {
+  const stats = { additions: 0, deletions: 0 };
+  for (const line of String(diff || "").split(/\r?\n/)) {
+    if (line.startsWith("+") && !line.startsWith("+++")) stats.additions += 1;
+    if (line.startsWith("-") && !line.startsWith("---")) stats.deletions += 1;
+  }
+  return stats;
 }
 
 function commitHashFromText(text) {

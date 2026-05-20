@@ -18,6 +18,7 @@ const wrappedPromptSessionId = "019e1c98-c592-7dc2-a684-ffec77c153bd";
 const splitDataImageSessionId = "019e1c98-c592-7dc2-a684-ffec77c153be";
 const gitSessionId = "019e1c98-c592-7dc2-a684-ffec77c153bf";
 const committedGitSessionId = "019e1c98-c592-7dc2-a684-ffec77c153c0";
+const patchChangesSessionId = "019e1c98-c592-7dc2-a684-ffec77c153c1";
 const rolloutDir = path.join(codexHome, "sessions", "2026", "05", "13");
 const rolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-00-00-${sessionId}.jsonl`);
 const bridgeRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-01-00-${bridgeSessionId}.jsonl`);
@@ -28,6 +29,7 @@ const wrappedPromptRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-05
 const splitDataImageRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-06-00-${splitDataImageSessionId}.jsonl`);
 const gitRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-07-00-${gitSessionId}.jsonl`);
 const committedGitRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-08-00-${committedGitSessionId}.jsonl`);
+const patchChangesRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-09-00-${patchChangesSessionId}.jsonl`);
 
 process.env.CODEX_HOME = codexHome;
 process.chdir(root);
@@ -78,7 +80,8 @@ fs.writeFileSync(
     JSON.stringify({ id: wrappedPromptSessionId, thread_name: "Wrapped Prompt", updated_at: "2026-05-13T01:00:00.000Z" }),
     JSON.stringify({ id: splitDataImageSessionId, thread_name: "Split Data Image", updated_at: "2026-05-13T01:00:00.000Z" }),
     JSON.stringify({ id: gitSessionId, thread_name: "Git Changes", updated_at: "2026-05-13T01:00:00.000Z" }),
-    JSON.stringify({ id: committedGitSessionId, thread_name: "Committed Git Changes", updated_at: "2026-05-13T01:00:00.000Z" })
+    JSON.stringify({ id: committedGitSessionId, thread_name: "Committed Git Changes", updated_at: "2026-05-13T01:00:00.000Z" }),
+    JSON.stringify({ id: patchChangesSessionId, thread_name: "Patch Changes", updated_at: "2026-05-13T01:00:00.000Z" })
   ].join("\n")
 );
 
@@ -290,6 +293,57 @@ fs.writeFileSync(
     })
   ].join("\n")
 );
+fs.writeFileSync(
+  patchChangesRolloutPath,
+  [
+    JSON.stringify({
+      timestamp: "2026-05-13T01:00:00.000Z",
+      type: "session_meta",
+      payload: { id: patchChangesSessionId, cwd: committedProjectRoot, model: "gpt-5.5" }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:00:01.000Z",
+      type: "event_msg",
+      payload: {
+        type: "patch_apply_end",
+        call_id: "patch-1",
+        turn_id: "turn-patch",
+        success: true,
+        changes: {
+          [path.join(committedProjectRoot, "src", "main.jsx")]: {
+            type: "update",
+            unified_diff: "@@ -10,3 +10,3 @@\n context\n-old\n+new\n-old2\n+new2\n context\n"
+          }
+        }
+      }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:00:02.000Z",
+      type: "event_msg",
+      payload: {
+        type: "patch_apply_end",
+        call_id: "patch-2",
+        turn_id: "turn-patch",
+        success: true,
+        changes: {
+          [path.join(committedProjectRoot, "test", "mobile.test.mjs")]: {
+            type: "update",
+            unified_diff: "@@ -1,1 +1,3 @@\n context\n+added\n+added2\n"
+          }
+        }
+      }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:00:03.000Z",
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: `${committedChangeHash} Feature changes` }]
+      }
+    })
+  ].join("\n")
+);
 fs.utimesSync(rolloutPath, new Date("2026-05-13T02:00:00.000Z"), new Date("2026-05-13T02:00:00.000Z"));
 fs.utimesSync(bridgeRolloutPath, new Date("2026-05-13T01:01:00.000Z"), new Date("2026-05-13T01:01:00.000Z"));
 fs.utimesSync(subagentRolloutPath, new Date("2026-05-13T01:02:00.000Z"), new Date("2026-05-13T01:02:00.000Z"));
@@ -299,14 +353,15 @@ fs.utimesSync(wrappedPromptRolloutPath, new Date("2026-05-13T01:05:00.000Z"), ne
 fs.utimesSync(splitDataImageRolloutPath, new Date("2026-05-13T01:06:00.000Z"), new Date("2026-05-13T01:06:00.000Z"));
 fs.utimesSync(gitRolloutPath, new Date("2026-05-13T01:07:00.000Z"), new Date("2026-05-13T01:07:00.000Z"));
 fs.utimesSync(committedGitRolloutPath, new Date("2026-05-13T01:08:00.000Z"), new Date("2026-05-13T01:08:00.000Z"));
+fs.utimesSync(patchChangesRolloutPath, new Date("2026-05-13T01:09:00.000Z"), new Date("2026-05-13T01:09:00.000Z"));
 
 const store = await import(`../server/codexStore.mjs?case=${Date.now()}`);
 
 test("lists Codex sessions from session_index and rollout files", () => {
   const sessions = store.listSessions();
   const session = sessions.find((item) => item.id === sessionId);
-  assert.equal(sessions.length, 9);
-  assert.equal(sessions.total, 9);
+  assert.equal(sessions.length, 10);
+  assert.equal(sessions.total, 10);
   assert.equal(sessions.hasMore, false);
   assert.equal(session.title, "Test Session");
   assert.equal(session.status, "waiting");
@@ -324,7 +379,7 @@ test("prefers rollout file mtime when session_index timestamps are stale", () =>
 test("paginates session summaries before hydrating details", () => {
   const firstPage = store.listSessionPage({ limit: 2 });
   assert.equal(firstPage.sessions.length, 2);
-  assert.equal(firstPage.total, 9);
+  assert.equal(firstPage.total, 10);
   assert.equal(firstPage.hasMore, true);
   assert.equal(firstPage.nextOffset, 2);
 
@@ -426,6 +481,22 @@ test("session detail falls back to committed git changes from assistant commit h
   assert.equal(added.status, "modified");
   assert.equal(added.additions, 1);
   assert.equal(added.deletions, 0);
+});
+
+test("session detail prefers Codex patch summaries over git net changes", () => {
+  const detail = store.getSessionDetail(patchChangesSessionId);
+  assert.equal(detail.gitChanges.source, "codex-patch");
+  assert.equal(detail.gitChanges.totalFiles, 2);
+  assert.equal(detail.gitChanges.additions, 4);
+  assert.equal(detail.gitChanges.deletions, 2);
+
+  const main = detail.gitChanges.files.find((file) => file.path === "src/main.jsx");
+  assert.equal(main.additions, 2);
+  assert.equal(main.deletions, 2);
+
+  const testFile = detail.gitChanges.files.find((file) => file.path === "test/mobile.test.mjs");
+  assert.equal(testFile.additions, 2);
+  assert.equal(testFile.deletions, 0);
 });
 
 test("session detail can be limited for mobile rendering", () => {
