@@ -882,6 +882,9 @@ function ActionPrompt({ session, authToken, backendUrl }) {
 
 function TimelineItem({ item, sessionId, authToken, backendUrl }) {
   const [collapsed, setCollapsed] = useState(false);
+  if (item.kind === "tool-group") {
+    return <ToolGroup item={item} sessionId={sessionId} authToken={authToken} backendUrl={backendUrl} />;
+  }
   const isTool = item.kind === "tool";
   const isToolOutput = item.kind === "tool-output";
   const isImageTool = isTool && item.title === "view_image";
@@ -921,6 +924,40 @@ function TimelineItem({ item, sessionId, authToken, backendUrl }) {
           {!isTool && !isToolOutput && <MarkdownContent text={item.text} sessionId={sessionId} authToken={authToken} backendUrl={backendUrl} />}
         </>
       )}
+    </article>
+  );
+}
+
+function ToolGroup({ item, sessionId, authToken, backendUrl }) {
+  return (
+    <article className="timeline-item tool-group">
+      <details className="tool-group-details">
+        <summary>
+          <span className="role-badge tool">工具</span>
+          <span className="item-title">{item.title}</span>
+          <time>{formatTime(item.at)}</time>
+        </summary>
+        <div className="tool-group-list">
+          {(item.items || []).map((entry, index) => (
+            <div className={`tool-group-entry ${entry.kind}`} key={`${entry.id}-${index}`}>
+              <div className="tool-group-entry-head">
+                <strong>{entry.title}</strong>
+                <time>{formatTime(entry.at)}</time>
+              </div>
+              {entry.kind === "tool-output" ? (
+                <details className="tool-details">
+                  <summary>查看工具输出</summary>
+                  <pre className="tool-summary">{entry.text}</pre>
+                </details>
+              ) : entry.title === "view_image" ? (
+                <MarkdownContent text={entry.text} sessionId={sessionId} authToken={authToken} backendUrl={backendUrl} />
+              ) : (
+                <pre className="tool-summary">{entry.text}</pre>
+              )}
+            </div>
+          ))}
+        </div>
+      </details>
     </article>
   );
 }

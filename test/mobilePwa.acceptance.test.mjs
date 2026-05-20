@@ -188,6 +188,10 @@ test("timeline renders markdown, local images, and compact tool summaries", () =
   assert.match(app, /const \[collapsed, setCollapsed\] = useState\(false\)/);
   assert.match(app, /className="timeline-toggle"/);
   assert.match(app, /function collapsePreview\(text\)/);
+  assert.match(app, /function ToolGroup\(\{ item, sessionId, authToken, backendUrl \}\)/);
+  assert.match(app, /item\.kind === "tool-group"/);
+  assert.match(app, /className="tool-group-details"/);
+  assert.match(app, /className="tool-group-list"/);
   assert.match(app, /function renderMarkdownBlocks\(text, sessionId, authToken, backendUrl\)/);
   assert.match(app, /function renderInline\(text, sessionId, authToken, backendUrl, keyPrefix\)/);
   assert.match(app, /normalizeMarkdownImages\(String\(text\)\)/);
@@ -206,6 +210,9 @@ test("timeline renders markdown, local images, and compact tool summaries", () =
   assert.match(css, /\.markdown-image\s*\{/);
   assert.match(css, /\.tool-summary\s*\{/);
   assert.match(css, /\.tool-details\s*\{/);
+  assert.match(css, /\.tool-group-details > summary\s*\{/);
+  assert.match(css, /\.tool-group-list\s*\{/);
+  assert.match(css, /\.tool-group-entry-head\s*\{/);
   assert.match(css, /\.timeline-toggle\s*\{/);
   assert.match(css, /\.collapsed-preview\s*\{/);
   assert.match(css, /\.git-changes\s*\{/);

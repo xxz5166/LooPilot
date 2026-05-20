@@ -329,6 +329,7 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
     }
   }
 
+  const compactedTimeline = detail ? compactTimeline(timeline, status) : undefined;
   const parsed = {
     id,
     cwd,
@@ -347,9 +348,9 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
     toolCount,
     updatedAt,
     stats,
-    timeline: detail ? timeline.slice(-maxDetailItems) : undefined,
-    timelineTotal: detail ? timeline.length : undefined,
-    timelineHasMore: detail ? timeline.length > maxDetailItems : undefined
+    timeline: detail ? compactedTimeline.slice(-maxDetailItems) : undefined,
+    timelineTotal: detail ? compactedTimeline.length : undefined,
+    timelineHasMore: detail ? compactedTimeline.length > maxDetailItems : undefined
   };
   rememberParse(cacheKey, parsed);
   return parsed;
@@ -420,6 +421,47 @@ function readJsonl(filePath) {
   } catch {
     return [];
   }
+}
+
+function compactTimeline(timeline, status) {
+  const compacted = [];
+  let group = null;
+
+  function flushGroup(isFinal = false) {
+    if (!group) return;
+    const commandCount = group.items.filter((item) => item.kind === "tool").length;
+    const lastTool = [...group.items].reverse().find((item) => item.kind === "tool");
+    compacted.push({
+      id: group.id,
+      kind: "tool-group",
+      role: "tool",
+      title: isFinal && status === "running" ? `正在运行 ${lastTool?.title || "工具"}` : `已运行 ${commandCount} 条命令`,
+      text: clip(group.items.map((item) => `${item.title}: ${collapseWhitespace(item.text)}`).join("\n"), MAX_PREVIEW_CHARS),
+      at: group.at,
+      commandCount,
+      items: group.items
+    });
+    group = null;
+  }
+
+  for (const item of timeline) {
+    if (["tool", "tool-output"].includes(item.kind)) {
+      if (!group) {
+        group = {
+          id: `tool-group-${item.id || compacted.length}`,
+          at: item.at,
+          items: []
+        };
+      }
+      group.at = item.at || group.at;
+      group.items.push(item);
+      continue;
+    }
+    flushGroup(false);
+    compacted.push(item);
+  }
+  flushGroup(true);
+  return compacted;
 }
 
 function mergePatchChanges(current, payload) {
@@ -801,6 +843,10 @@ function pushTimeline(timeline, detail, item) {
 function truncateForDetail(text, detail) {
   if (detail && /data:image\/[a-z0-9.+-]+;base64,/i.test(String(text || ""))) return String(text || "").trim();
   return detail ? clip(text, 5000) : clip(text, MAX_PREVIEW_CHARS);
+}
+
+function collapseWhitespace(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
 }
 
 function clip(text, limit) {

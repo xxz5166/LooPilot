@@ -502,13 +502,15 @@ test("session detail prefers Codex patch summaries over git net changes", () => 
 test("session detail can be limited for mobile rendering", () => {
   const detail = store.getSessionDetail(sessionId, { limit: 2 });
   assert.equal(detail.timeline.length, 2);
-  assert.equal(detail.timelineTotal, 4);
+  assert.equal(detail.timelineTotal, 3);
   assert.equal(detail.timelineHasMore, true);
 });
 
 test("session detail summarizes tool calls instead of exposing raw JSON arguments", () => {
   const detail = store.getSessionDetail(sessionId);
-  const item = detail.timeline.find((entry) => entry.id === "shell-1");
+  const group = detail.timeline.find((entry) => entry.kind === "tool-group");
+  assert.equal(group.commandCount, 2);
+  const item = group.items.find((entry) => entry.id === "shell-1");
   assert.equal(item.title, "shell_command");
   assert.match(item.text, /运行命令：npm\.cmd run accept:browser/);
   assert.match(item.text, /目录：D:\\LooPilot/);
