@@ -172,6 +172,8 @@ test("critical mobile actions remain reachable from the authenticated workspace"
   assert.match(app, /sandboxMode: permission\.sandboxMode/);
   assert.match(app, /onSent=\{\(\) => current\?\.id && loadDetail\(current\.id, authToken, backendUrl\)\.then\(setDetail\)\}/);
   assert.match(app, /session\.gitChanges\?\.totalFiles > 0 && <GitChanges changes=\{session\.gitChanges\} \/>/);
+  assert.ok(app.indexOf("{session.gitChanges?.totalFiles > 0 && <GitChanges") > app.indexOf('<div className="timeline">'));
+  assert.ok(app.indexOf("{session.gitChanges?.totalFiles > 0 && <GitChanges") < app.indexOf("{outboxItems.length > 0 && ("));
   assert.match(app, /function GitChanges\(\{ changes \}\)/);
   assert.match(app, /\{changes\.totalFiles\} 个文件已更改/);
   assert.match(app, /className="git-change-row"/);

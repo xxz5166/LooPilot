@@ -708,7 +708,6 @@ function SessionSurface({ session, authToken, backendUrl }) {
         <Metric icon={<TerminalSquare size={14} />} label="工具" value={session.toolCount || 0} />
         <Metric icon={<Clock3 size={14} />} label="更新" value={formatTime(session.updatedAt)} />
       </div>
-      {session.gitChanges?.totalFiles > 0 && <GitChanges changes={session.gitChanges} />}
       {session.pendingAction && <ActionPrompt session={session} authToken={authToken} backendUrl={backendUrl} />}
       <div className="timeline">
         {(session.timeline || []).map((item, index) => (
@@ -716,6 +715,7 @@ function SessionSurface({ session, authToken, backendUrl }) {
         ))}
         {session.status === "running" && <RunningIndicator />}
       </div>
+      {session.gitChanges?.totalFiles > 0 && <GitChanges changes={session.gitChanges} />}
       {outboxItems.length > 0 && (
         <div className="outbox">
           <strong>最近手机端操作 <small>最多显示 3 条</small></strong>
