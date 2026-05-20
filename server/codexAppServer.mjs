@@ -95,7 +95,7 @@ async function ensureConnected(onUpdate) {
       socket.once("error", reject);
     });
     await request("initialize", {
-      clientInfo: { name: "LooPilot", version: "0.1.0" },
+      clientInfo: { name: "LooPilot", version: "1.0.2" },
       capabilities: { experimentalApi: true }
     });
     socket.send(JSON.stringify({ method: "initialized" }));
