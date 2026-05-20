@@ -182,7 +182,7 @@ if (args.has("--prod")) {
   const vite = await createServer({
     root,
     configFile: false,
-    plugins: [react()],
+    plugins: [react(), stripViteClientPlugin()],
     cacheDir: path.join(getStateDir(), "vite-cache"),
     server: {
       middlewareMode: true,
@@ -244,6 +244,18 @@ function broadcast(payload) {
   for (const client of wss.clients) {
     if (client.readyState === client.OPEN) client.send(data);
   }
+}
+
+function stripViteClientPlugin() {
+  return {
+    name: "loopilot-strip-vite-client",
+    transformIndexHtml: {
+      order: "post",
+      handler(html) {
+        return html.replace(/<script type="module" src="\/@vite\/client"><\/script>\s*/g, "");
+      }
+    }
+  };
 }
 
 async function startTunnel(targetPort) {
@@ -423,13 +435,11 @@ function safeRealpath(filePath) {
 function isSessionMediaPath(session, realPath) {
   const allowed = new Set();
   if (isUploadedAttachmentPath(session.id, realPath)) return true;
-  for (const item of session.timeline || []) {
-    for (const src of markdownImageSources(item.text || "")) {
-      const normalized = normalizeMediaPath(src);
-      if (!normalized || !path.isAbsolute(normalized)) continue;
-      const referencedRealPath = safeRealpath(normalized);
-      if (referencedRealPath) allowed.add(normalizePathKey(referencedRealPath));
-    }
+  for (const src of timelineImageSources(session.timeline || [])) {
+    const normalized = normalizeMediaPath(src);
+    if (!normalized || !path.isAbsolute(normalized)) continue;
+    const referencedRealPath = safeRealpath(normalized);
+    if (referencedRealPath) allowed.add(normalizePathKey(referencedRealPath));
   }
   for (const record of session.outbox || []) {
     for (const attachment of record.options?.attachments || []) {
@@ -438,6 +448,15 @@ function isSessionMediaPath(session, realPath) {
     }
   }
   return allowed.has(normalizePathKey(realPath));
+}
+
+function timelineImageSources(items) {
+  const sources = [];
+  for (const item of items || []) {
+    sources.push(...markdownImageSources(item.text || ""));
+    if (Array.isArray(item.items)) sources.push(...timelineImageSources(item.items));
+  }
+  return sources;
 }
 
 function markdownImageSources(text) {

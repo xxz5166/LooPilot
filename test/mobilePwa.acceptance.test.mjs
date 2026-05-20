@@ -111,7 +111,7 @@ test("critical mobile actions remain reachable from the authenticated workspace"
   assert.match(app, /const nativeShell = isNativeShell\(\)/);
   assert.match(app, /localStorage\.setItem\(storedTokenKey, token\)/);
   assert.match(app, /import QrScanner from "qr-scanner"/);
-  assert.match(app, /qr-scanner-worker\.min\.js\?url/);
+  assert.doesNotMatch(app, /QrScanner\.WORKER_PATH/);
   assert.match(app, /function PairingScanner\(\{ onResult, onClose, onError \}\)/);
   assert.match(app, /new QrScanner\(/);
   assert.match(app, /preferredCamera: "environment"/);

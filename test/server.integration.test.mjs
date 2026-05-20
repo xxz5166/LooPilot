@@ -12,7 +12,9 @@ const projectRoot = path.resolve(import.meta.dirname, "..");
 test("development middleware loads React transform for JSX", () => {
   const source = fs.readFileSync(path.join(projectRoot, "server", "index.mjs"), "utf8");
   assert.match(source, /await import\("@vitejs\/plugin-react"\)/);
-  assert.match(source, /plugins:\s*\[react\(\)\]/);
+  assert.match(source, /plugins:\s*\[react\(\), stripViteClientPlugin\(\)\]/);
+  assert.match(source, /stripViteClientPlugin\(\)/);
+  assert.match(source, /loopilot-strip-vite-client/);
   assert.match(source, /import QRCode from "qrcode"/);
   assert.match(source, /type: "loopilot-pairing"/);
 });
@@ -325,6 +327,7 @@ test("public mode starts tunnel path without exposing tokens", async () => {
 
   try {
     await waitFor(() => stdout.includes(`Public URL: ${publicUrl}`), 10000, () => stderr || stdout);
+    await waitFor(() => stdout.includes(`Pairing QR (${publicUrl}):`), 10000, () => stderr || stdout);
     const publicLine = stdout.split(/\r?\n/).find((line) => line.includes("Public URL:"));
     assert.equal(publicLine, `Public URL: ${publicUrl}`);
     assert.doesNotMatch(publicLine, /token=/);
@@ -421,8 +424,32 @@ function makeFixture() {
       }),
       JSON.stringify({
         timestamp: "2026-05-13T01:00:01.000Z",
+        type: "event_msg",
+        payload: { type: "task_started", turn_id: "fixture-turn", started_at: "2026-05-13T01:00:01.000Z" }
+      }),
+      JSON.stringify({
+        timestamp: "2026-05-13T01:00:02.000Z",
         type: "response_item",
-        payload: { type: "message", role: "assistant", content: [{ type: "output_text", text: `ready\n\n![fixture](${imagePath})` }] }
+        payload: {
+          type: "message",
+          role: "assistant",
+          content: [{ type: "output_text", text: `${"review ".repeat(80)}\n\n![fixture](${imagePath})` }]
+        }
+      }),
+      JSON.stringify({
+        timestamp: "2026-05-13T01:00:03.000Z",
+        type: "response_item",
+        payload: { type: "message", role: "assistant", content: [{ type: "output_text", text: "ready" }] }
+      }),
+      JSON.stringify({
+        timestamp: "2026-05-13T01:00:04.000Z",
+        type: "event_msg",
+        payload: {
+          type: "task_complete",
+          turn_id: "fixture-turn",
+          completed_at: "2026-05-13T01:00:04.000Z",
+          duration_ms: 3000
+        }
       })
     ].join("\n")
   );

@@ -28,7 +28,6 @@ import {
   X
 } from "lucide-react";
 import QrScanner from "qr-scanner";
-import qrScannerWorkerUrl from "qr-scanner/qr-scanner-worker.min.js?url";
 import {
   getNotificationPermission,
   notifyPendingAction,
@@ -36,8 +35,6 @@ import {
   requestNotificationPermission
 } from "./notifications.js";
 import "./styles.css";
-
-QrScanner.WORKER_PATH = qrScannerWorkerUrl;
 
 const modelOptions = ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex"];
 const reasoningOptions = ["low", "medium", "high", "xhigh"];
