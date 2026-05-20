@@ -71,7 +71,7 @@ const rows = [
       type: "message",
       role: "assistant",
       content: [
-        { type: "output_text", text: "working" },
+        { type: "output_text", text: "working\n\n::git-stage{cwd=\"D:\\LooPilot\"}\n::git-commit{cwd=\"D:\\LooPilot\"}\n::git-push{cwd=\"D:\\LooPilot\" branch=\"main\"}" },
         { type: "local_image", path: "D:\\LooPilot\\phone.png", name: "phone.png", mime_type: "image/png" }
       ]
     }
@@ -293,6 +293,7 @@ test("session detail includes timeline and pending user-input action", () => {
   const detail = store.getSessionDetail(sessionId);
   assert.equal(detail.timeline.some((item) => item.role === "user" && item.text === "hello"), true);
   assert.equal(detail.timeline.some((item) => item.role === "assistant" && item.text.includes("working")), true);
+  assert.equal(detail.timeline.some((item) => item.role === "assistant" && item.text.includes("::git-")), false);
   assert.equal(detail.timeline.some((item) => item.role === "assistant" && item.text.includes("![phone.png](D:\\LooPilot\\phone.png)")), true);
   assert.equal(detail.pendingAction.id, "ask-1");
   assert.equal(detail.pendingAction.kind, "input");

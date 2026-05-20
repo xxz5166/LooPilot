@@ -171,7 +171,7 @@ test("critical mobile actions remain reachable from the authenticated workspace"
   assert.match(app, /approvalPolicy: permission\.approvalPolicy/);
   assert.match(app, /sandboxMode: permission\.sandboxMode/);
   assert.match(app, /onSent=\{\(\) => current\?\.id && loadDetail\(current\.id, authToken, backendUrl\)\.then\(setDetail\)\}/);
-  assert.match(app, /<strong>远程发送状态<\/strong>/);
+  assert.match(app, /<strong>最近手机端操作 <small>最多显示 3 条<\/small><\/strong>/);
   assert.match(app, /className="outbox-state"/);
   assert.match(app, /function formatOutboxRecord\(record\)/);
 });
@@ -203,6 +203,8 @@ test("timeline renders markdown, local images, and compact tool summaries", () =
   assert.match(css, /\.timeline-toggle\s*\{/);
   assert.match(css, /\.collapsed-preview\s*\{/);
   assert.match(css, /\.outbox-row\s*\{/);
+  assert.match(css, /\.outbox > strong\s*\{/);
+  assert.match(css, /\.outbox > strong small\s*\{/);
   assert.match(css, /\.outbox-state\s*\{/);
 });
 

@@ -456,7 +456,7 @@ function flattenContent(content) {
 }
 
 function normalizeDisplayText(text) {
-  return normalizeMarkdownImages(stripImageWrapperTags(unwrapJsonEscapedPrompt(text)));
+  return normalizeMarkdownImages(stripCodexAppDirectives(stripImageWrapperTags(unwrapJsonEscapedPrompt(text))));
 }
 
 function unwrapJsonEscapedPrompt(text) {
@@ -488,6 +488,10 @@ function normalizeMarkdownImages(text) {
 
 function stripImageWrapperTags(text) {
   return String(text || "").replace(/^\s*<\/?image>\s*$/gim, "").trim();
+}
+
+function stripCodexAppDirectives(text) {
+  return String(text || "").replace(/^\s*::git-[a-z-]+\{.*\}\s*$/gim, "").trim();
 }
 
 function imageSourceFromContentPart(part) {

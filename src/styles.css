@@ -1005,6 +1005,19 @@ button {
   background: rgba(109, 182, 255, 0.07);
 }
 
+.outbox > strong {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.outbox > strong small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .outbox-row {
   display: grid;
   grid-template-columns: auto 1fr;

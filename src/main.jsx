@@ -717,7 +717,7 @@ function SessionSurface({ session, authToken, backendUrl }) {
       </div>
       {outboxItems.length > 0 && (
         <div className="outbox">
-          <strong>远程发送状态</strong>
+          <strong>最近手机端操作 <small>最多显示 3 条</small></strong>
           {outboxItems.map((item) => (
             <div className={`outbox-row ${item.tone || ""}`} key={item.key}>
               <span className="outbox-state">{item.state}</span>
