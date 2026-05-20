@@ -66,6 +66,7 @@ export function getSessionDetail(id, options = {}) {
   });
   const outbox = readOutbox(id);
   const pendingAction = visiblePendingAction(parsed.pendingAction, outbox) || pendingActionFromJobs(outbox);
+  const cwd = parsed.cwd || summary.cwd;
   return {
     ...summary,
     ...parsed,
@@ -74,7 +75,7 @@ export function getSessionDetail(id, options = {}) {
     status: parsed.status === "waiting" && !pendingAction ? "idle" : parsed.status,
     pendingAction,
     outbox,
-    gitChanges: gitChangesForCwd(parsed.cwd || summary.cwd)
+    gitChanges: gitChangesForCwd(cwd) || gitCommittedChangesForCwd(cwd, parsed.commitHash)
   };
 }
 
@@ -214,6 +215,7 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
   let status = "idle";
   let pendingAction = null;
   let lastOutput = "";
+  let commitHash = "";
   let messageCount = 0;
   let toolCount = 0;
   let updatedAt = stat?.mtime?.toISOString();
@@ -270,6 +272,7 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
       if (text) {
         messageCount += 1;
         lastOutput = item.role === "assistant" ? text : lastOutput || text;
+        if (item.role === "assistant") commitHash = commitHashFromText(text) || commitHash;
         pushTimeline(timeline, detail, {
           id: item.id || `${timeline.length}`,
           kind: "message",
@@ -331,6 +334,7 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
     status,
     progress: progress.slice(-5),
     pendingAction,
+    commitHash,
     lastOutput: clip(lastOutput, MAX_PREVIEW_CHARS),
     messageCount,
     toolCount,
@@ -412,7 +416,7 @@ function readJsonl(filePath) {
 }
 
 function gitChangesForCwd(cwd) {
-  const cacheKey = String(cwd || "");
+  const cacheKey = `working|${String(cwd || "")}`;
   const cached = gitChangesCache.get(cacheKey);
   if (cached && Date.now() - cached.at < GIT_CHANGES_CACHE_TTL_MS) return cached.value;
   const repoRoot = gitOutput(cwd, ["rev-parse", "--show-toplevel"]);
@@ -453,6 +457,52 @@ function gitChangesForCwd(cwd) {
 
   if (!files.length) return rememberGitChanges(cacheKey, null);
   return rememberGitChanges(cacheKey, {
+    source: "working-tree",
+    root: repoRoot,
+    totalFiles: files.length,
+    additions,
+    deletions,
+    files: files.slice(0, MAX_GIT_CHANGE_FILES),
+    hasMore: files.length > MAX_GIT_CHANGE_FILES
+  });
+}
+
+function gitCommittedChangesForCwd(cwd, commitHash) {
+  const normalizedHash = normalizeCommitHash(commitHash);
+  if (!normalizedHash) return null;
+  const cacheKey = `commit|${String(cwd || "")}|${normalizedHash}`;
+  const cached = gitChangesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < GIT_CHANGES_CACHE_TTL_MS) return cached.value;
+  const repoRoot = gitOutput(cwd, ["rev-parse", "--show-toplevel"]);
+  if (!repoRoot) return rememberGitChanges(cacheKey, null);
+  const verifiedHash = gitOutput(repoRoot, ["rev-parse", "--verify", `${normalizedHash}^{commit}`]);
+  if (!verifiedHash) return rememberGitChanges(cacheKey, null);
+
+  const files = [];
+  let additions = 0;
+  let deletions = 0;
+  const output = gitOutput(repoRoot, ["show", "--numstat", "--format=", "--find-renames", verifiedHash, "--"]);
+  for (const line of output.split(/\r?\n/).filter(Boolean)) {
+    const [added, deleted, ...pathParts] = line.split("\t");
+    const filePath = pathParts.join("\t");
+    if (!filePath) continue;
+    const normalized = normalizeGitPath(filePath);
+    const addedCount = parseGitCount(added);
+    const deletedCount = parseGitCount(deleted);
+    additions += addedCount || 0;
+    deletions += deletedCount || 0;
+    files.push({
+      path: normalized,
+      additions: addedCount,
+      deletions: deletedCount,
+      status: "modified"
+    });
+  }
+
+  if (!files.length) return rememberGitChanges(cacheKey, null);
+  return rememberGitChanges(cacheKey, {
+    source: "commit",
+    ref: normalizedHash,
     root: repoRoot,
     totalFiles: files.length,
     additions,
@@ -508,6 +558,22 @@ function normalizeGitPath(value) {
 function parseGitCount(value) {
   const count = Number(value);
   return Number.isFinite(count) ? count : null;
+}
+
+function commitHashFromText(text) {
+  const lines = String(text || "").split(/\r?\n/).reverse();
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length > 160) continue;
+    const match = trimmed.match(/^`?([0-9a-f]{7,40})`?(?:\s+.+)?$/i);
+    if (match) return match[1];
+  }
+  return "";
+}
+
+function normalizeCommitHash(value) {
+  const match = String(value || "").trim().match(/^[0-9a-f]{7,40}$/i);
+  return match ? match[0] : "";
 }
 
 function countTextLines(filePath) {

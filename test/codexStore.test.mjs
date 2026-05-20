@@ -8,6 +8,7 @@ import test from "node:test";
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "loopilot-store-"));
 const codexHome = path.join(root, ".codex");
 const projectRoot = path.join(root, "project");
+const committedProjectRoot = path.join(root, "committed-project");
 const sessionId = "019e1c98-c592-7dc2-a684-ffec77c153b8";
 const bridgeSessionId = "019e1c98-c592-7dc2-a684-ffec77c153b9";
 const subagentSessionId = "019e1c98-c592-7dc2-a684-ffec77c153ba";
@@ -16,6 +17,7 @@ const completedPendingSessionId = "019e1c98-c592-7dc2-a684-ffec77c153bc";
 const wrappedPromptSessionId = "019e1c98-c592-7dc2-a684-ffec77c153bd";
 const splitDataImageSessionId = "019e1c98-c592-7dc2-a684-ffec77c153be";
 const gitSessionId = "019e1c98-c592-7dc2-a684-ffec77c153bf";
+const committedGitSessionId = "019e1c98-c592-7dc2-a684-ffec77c153c0";
 const rolloutDir = path.join(codexHome, "sessions", "2026", "05", "13");
 const rolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-00-00-${sessionId}.jsonl`);
 const bridgeRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-01-00-${bridgeSessionId}.jsonl`);
@@ -25,17 +27,19 @@ const completedPendingRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09
 const wrappedPromptRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-05-00-${wrappedPromptSessionId}.jsonl`);
 const splitDataImageRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-06-00-${splitDataImageSessionId}.jsonl`);
 const gitRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-07-00-${gitSessionId}.jsonl`);
+const committedGitRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-08-00-${committedGitSessionId}.jsonl`);
 
 process.env.CODEX_HOME = codexHome;
 process.chdir(root);
 
-function runGit(args) {
+function runGit(args, cwd = projectRoot) {
   const result = spawnSync("git", args, {
-    cwd: projectRoot,
+    cwd,
     encoding: "utf8",
     windowsHide: true
   });
   assert.equal(result.status, 0, `git ${args.join(" ")}\n${result.stderr || result.stdout}`);
+  return String(result.stdout || "").trim();
 }
 
 fs.mkdirSync(rolloutDir, { recursive: true });
@@ -49,6 +53,20 @@ runGit(["add", "."]);
 runGit(["commit", "-m", "init"]);
 fs.writeFileSync(path.join(projectRoot, "src", "main.js"), "one\nthree\nfour\n");
 fs.writeFileSync(path.join(projectRoot, "notes.txt"), "todo\nlater\n");
+
+fs.mkdirSync(path.join(committedProjectRoot, "src"), { recursive: true });
+runGit(["init"], committedProjectRoot);
+runGit(["config", "user.name", "LooPilot Test"], committedProjectRoot);
+runGit(["config", "user.email", "loopilot@example.test"], committedProjectRoot);
+fs.writeFileSync(path.join(committedProjectRoot, "README.md"), "base\n");
+runGit(["add", "."], committedProjectRoot);
+runGit(["commit", "-m", "init"], committedProjectRoot);
+fs.writeFileSync(path.join(committedProjectRoot, "README.md"), "base\nnext\n");
+fs.writeFileSync(path.join(committedProjectRoot, "src", "feature.js"), "export const value = 1;\n");
+runGit(["add", "."], committedProjectRoot);
+runGit(["commit", "-m", "feature changes"], committedProjectRoot);
+const committedChangeHash = runGit(["rev-parse", "--short", "HEAD"], committedProjectRoot);
+
 fs.writeFileSync(
   path.join(codexHome, "session_index.jsonl"),
   [
@@ -59,7 +77,8 @@ fs.writeFileSync(
     JSON.stringify({ id: completedPendingSessionId, thread_name: "Completed Pending", updated_at: "2026-05-13T01:00:00.000Z" }),
     JSON.stringify({ id: wrappedPromptSessionId, thread_name: "Wrapped Prompt", updated_at: "2026-05-13T01:00:00.000Z" }),
     JSON.stringify({ id: splitDataImageSessionId, thread_name: "Split Data Image", updated_at: "2026-05-13T01:00:00.000Z" }),
-    JSON.stringify({ id: gitSessionId, thread_name: "Git Changes", updated_at: "2026-05-13T01:00:00.000Z" })
+    JSON.stringify({ id: gitSessionId, thread_name: "Git Changes", updated_at: "2026-05-13T01:00:00.000Z" }),
+    JSON.stringify({ id: committedGitSessionId, thread_name: "Committed Git Changes", updated_at: "2026-05-13T01:00:00.000Z" })
   ].join("\n")
 );
 
@@ -252,6 +271,25 @@ fs.writeFileSync(
     payload: { id: gitSessionId, cwd: projectRoot, model: "gpt-5.5" }
   })}\n`
 );
+fs.writeFileSync(
+  committedGitRolloutPath,
+  [
+    JSON.stringify({
+      timestamp: "2026-05-13T01:00:00.000Z",
+      type: "session_meta",
+      payload: { id: committedGitSessionId, cwd: committedProjectRoot, model: "gpt-5.5" }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:00:01.000Z",
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: `Done.\n\n${committedChangeHash} Feature changes\n\nTests passed.` }]
+      }
+    })
+  ].join("\n")
+);
 fs.utimesSync(rolloutPath, new Date("2026-05-13T02:00:00.000Z"), new Date("2026-05-13T02:00:00.000Z"));
 fs.utimesSync(bridgeRolloutPath, new Date("2026-05-13T01:01:00.000Z"), new Date("2026-05-13T01:01:00.000Z"));
 fs.utimesSync(subagentRolloutPath, new Date("2026-05-13T01:02:00.000Z"), new Date("2026-05-13T01:02:00.000Z"));
@@ -260,14 +298,15 @@ fs.utimesSync(completedPendingRolloutPath, new Date("2026-05-13T01:04:00.000Z"),
 fs.utimesSync(wrappedPromptRolloutPath, new Date("2026-05-13T01:05:00.000Z"), new Date("2026-05-13T01:05:00.000Z"));
 fs.utimesSync(splitDataImageRolloutPath, new Date("2026-05-13T01:06:00.000Z"), new Date("2026-05-13T01:06:00.000Z"));
 fs.utimesSync(gitRolloutPath, new Date("2026-05-13T01:07:00.000Z"), new Date("2026-05-13T01:07:00.000Z"));
+fs.utimesSync(committedGitRolloutPath, new Date("2026-05-13T01:08:00.000Z"), new Date("2026-05-13T01:08:00.000Z"));
 
 const store = await import(`../server/codexStore.mjs?case=${Date.now()}`);
 
 test("lists Codex sessions from session_index and rollout files", () => {
   const sessions = store.listSessions();
   const session = sessions.find((item) => item.id === sessionId);
-  assert.equal(sessions.length, 8);
-  assert.equal(sessions.total, 8);
+  assert.equal(sessions.length, 9);
+  assert.equal(sessions.total, 9);
   assert.equal(sessions.hasMore, false);
   assert.equal(session.title, "Test Session");
   assert.equal(session.status, "waiting");
@@ -285,7 +324,7 @@ test("prefers rollout file mtime when session_index timestamps are stale", () =>
 test("paginates session summaries before hydrating details", () => {
   const firstPage = store.listSessionPage({ limit: 2 });
   assert.equal(firstPage.sessions.length, 2);
-  assert.equal(firstPage.total, 8);
+  assert.equal(firstPage.total, 9);
   assert.equal(firstPage.hasMore, true);
   assert.equal(firstPage.nextOffset, 2);
 
@@ -354,6 +393,7 @@ test("session detail preserves split data URL images for rendering", () => {
 
 test("session detail includes git changes for the session cwd", () => {
   const detail = store.getSessionDetail(gitSessionId);
+  assert.equal(detail.gitChanges.source, "working-tree");
   assert.equal(detail.gitChanges.totalFiles, 2);
   assert.equal(detail.gitChanges.additions, 4);
   assert.equal(detail.gitChanges.deletions, 1);
@@ -367,6 +407,25 @@ test("session detail includes git changes for the session cwd", () => {
   assert.equal(untracked.status, "untracked");
   assert.equal(untracked.additions, 2);
   assert.equal(untracked.deletions, 0);
+});
+
+test("session detail falls back to committed git changes from assistant commit hash", () => {
+  const detail = store.getSessionDetail(committedGitSessionId);
+  assert.equal(detail.gitChanges.source, "commit");
+  assert.equal(detail.gitChanges.ref, committedChangeHash);
+  assert.equal(detail.gitChanges.totalFiles, 2);
+  assert.equal(detail.gitChanges.additions, 2);
+  assert.equal(detail.gitChanges.deletions, 0);
+
+  const modified = detail.gitChanges.files.find((file) => file.path === "README.md");
+  assert.equal(modified.status, "modified");
+  assert.equal(modified.additions, 1);
+  assert.equal(modified.deletions, 0);
+
+  const added = detail.gitChanges.files.find((file) => file.path === "src/feature.js");
+  assert.equal(added.status, "modified");
+  assert.equal(added.additions, 1);
+  assert.equal(added.deletions, 0);
 });
 
 test("session detail can be limited for mobile rendering", () => {
