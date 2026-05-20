@@ -628,8 +628,16 @@ button {
 
 .process-details > summary::after {
   content: "▸";
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 6px;
   color: var(--muted);
-  font-size: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 11px;
   transition: transform 0.16s ease;
 }
 

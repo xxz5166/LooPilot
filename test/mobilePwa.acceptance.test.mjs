@@ -219,6 +219,7 @@ test("timeline renders markdown, local images, and compact tool summaries", () =
   assert.match(css, /\.tool-details\s*\{/);
   assert.match(css, /\.timeline-item\.turn-process\s*\{/);
   assert.match(css, /\.process-details > summary\s*\{/);
+  assert.match(css, /\.process-details > summary::after\s*\{[\s\S]*width:\s*22px/);
   assert.match(css, /\.process-details:not\(\[open\]\) \.process-list\s*\{/);
   assert.match(css, /\.process-list\s*\{/);
   assert.match(css, /\.process-entry-head\s*\{/);
