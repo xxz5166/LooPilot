@@ -19,6 +19,7 @@ const splitDataImageSessionId = "019e1c98-c592-7dc2-a684-ffec77c153be";
 const gitSessionId = "019e1c98-c592-7dc2-a684-ffec77c153bf";
 const committedGitSessionId = "019e1c98-c592-7dc2-a684-ffec77c153c0";
 const patchChangesSessionId = "019e1c98-c592-7dc2-a684-ffec77c153c1";
+const completedTurnSessionId = "019e1c98-c592-7dc2-a684-ffec77c153c2";
 const rolloutDir = path.join(codexHome, "sessions", "2026", "05", "13");
 const rolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-00-00-${sessionId}.jsonl`);
 const bridgeRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-01-00-${bridgeSessionId}.jsonl`);
@@ -30,6 +31,7 @@ const splitDataImageRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-0
 const gitRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-07-00-${gitSessionId}.jsonl`);
 const committedGitRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-08-00-${committedGitSessionId}.jsonl`);
 const patchChangesRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-09-00-${patchChangesSessionId}.jsonl`);
+const completedTurnRolloutPath = path.join(rolloutDir, `rollout-2026-05-13T09-10-00-${completedTurnSessionId}.jsonl`);
 
 process.env.CODEX_HOME = codexHome;
 process.chdir(root);
@@ -81,7 +83,8 @@ fs.writeFileSync(
     JSON.stringify({ id: splitDataImageSessionId, thread_name: "Split Data Image", updated_at: "2026-05-13T01:00:00.000Z" }),
     JSON.stringify({ id: gitSessionId, thread_name: "Git Changes", updated_at: "2026-05-13T01:00:00.000Z" }),
     JSON.stringify({ id: committedGitSessionId, thread_name: "Committed Git Changes", updated_at: "2026-05-13T01:00:00.000Z" }),
-    JSON.stringify({ id: patchChangesSessionId, thread_name: "Patch Changes", updated_at: "2026-05-13T01:00:00.000Z" })
+    JSON.stringify({ id: patchChangesSessionId, thread_name: "Patch Changes", updated_at: "2026-05-13T01:00:00.000Z" }),
+    JSON.stringify({ id: completedTurnSessionId, thread_name: "Completed Turn", updated_at: "2026-05-13T01:00:00.000Z" })
   ].join("\n")
 );
 
@@ -344,6 +347,80 @@ fs.writeFileSync(
     })
   ].join("\n")
 );
+fs.writeFileSync(
+  completedTurnRolloutPath,
+  [
+    JSON.stringify({
+      timestamp: "2026-05-13T01:10:00.000Z",
+      type: "session_meta",
+      payload: { id: completedTurnSessionId, cwd: "D:\\LooPilot", model: "gpt-5.5" }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:10:01.000Z",
+      type: "event_msg",
+      payload: { type: "task_started", turn_id: "turn-complete", started_at: "2026-05-13T01:10:01.000Z" }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:10:02.000Z",
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "user",
+        content: [{ type: "input_text", text: "do work" }]
+      }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:10:03.000Z",
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: "I'll inspect first." }]
+      }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:10:04.000Z",
+      type: "response_item",
+      payload: {
+        type: "function_call",
+        name: "shell_command",
+        call_id: "complete-shell",
+        arguments: JSON.stringify({
+          command: "npm.cmd test",
+          workdir: "D:\\LooPilot"
+        })
+      }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:10:05.000Z",
+      type: "response_item",
+      payload: {
+        type: "function_call_output",
+        call_id: "complete-shell",
+        output: "tests passed"
+      }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:10:06.000Z",
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: "Final answer only." }]
+      }
+    }),
+    JSON.stringify({
+      timestamp: "2026-05-13T01:17:39.000Z",
+      type: "event_msg",
+      payload: {
+        type: "task_complete",
+        turn_id: "turn-complete",
+        completed_at: "2026-05-13T01:17:39.000Z",
+        duration_ms: 458000
+      }
+    })
+  ].join("\n")
+);
 fs.utimesSync(rolloutPath, new Date("2026-05-13T02:00:00.000Z"), new Date("2026-05-13T02:00:00.000Z"));
 fs.utimesSync(bridgeRolloutPath, new Date("2026-05-13T01:01:00.000Z"), new Date("2026-05-13T01:01:00.000Z"));
 fs.utimesSync(subagentRolloutPath, new Date("2026-05-13T01:02:00.000Z"), new Date("2026-05-13T01:02:00.000Z"));
@@ -354,14 +431,15 @@ fs.utimesSync(splitDataImageRolloutPath, new Date("2026-05-13T01:06:00.000Z"), n
 fs.utimesSync(gitRolloutPath, new Date("2026-05-13T01:07:00.000Z"), new Date("2026-05-13T01:07:00.000Z"));
 fs.utimesSync(committedGitRolloutPath, new Date("2026-05-13T01:08:00.000Z"), new Date("2026-05-13T01:08:00.000Z"));
 fs.utimesSync(patchChangesRolloutPath, new Date("2026-05-13T01:09:00.000Z"), new Date("2026-05-13T01:09:00.000Z"));
+fs.utimesSync(completedTurnRolloutPath, new Date("2026-05-13T01:10:00.000Z"), new Date("2026-05-13T01:10:00.000Z"));
 
 const store = await import(`../server/codexStore.mjs?case=${Date.now()}`);
 
 test("lists Codex sessions from session_index and rollout files", () => {
   const sessions = store.listSessions();
   const session = sessions.find((item) => item.id === sessionId);
-  assert.equal(sessions.length, 10);
-  assert.equal(sessions.total, 10);
+  assert.equal(sessions.length, 11);
+  assert.equal(sessions.total, 11);
   assert.equal(sessions.hasMore, false);
   assert.equal(session.title, "Test Session");
   assert.equal(session.status, "waiting");
@@ -379,7 +457,7 @@ test("prefers rollout file mtime when session_index timestamps are stale", () =>
 test("paginates session summaries before hydrating details", () => {
   const firstPage = store.listSessionPage({ limit: 2 });
   assert.equal(firstPage.sessions.length, 2);
-  assert.equal(firstPage.total, 10);
+  assert.equal(firstPage.total, 11);
   assert.equal(firstPage.hasMore, true);
   assert.equal(firstPage.nextOffset, 2);
 
@@ -515,6 +593,18 @@ test("session detail summarizes tool calls instead of exposing raw JSON argument
   assert.match(item.text, /运行命令：npm\.cmd run accept:browser/);
   assert.match(item.text, /目录：D:\\LooPilot/);
   assert.doesNotMatch(item.text, /"command"/);
+});
+
+test("completed turns keep the final answer and fold intermediate work", () => {
+  const detail = store.getSessionDetail(completedTurnSessionId);
+  assert.equal(detail.timeline.some((item) => item.role === "user" && item.text === "do work"), true);
+  assert.equal(detail.timeline.some((item) => item.role === "assistant" && item.text === "Final answer only."), true);
+  assert.equal(detail.timeline.some((item) => item.role === "assistant" && item.text === "I'll inspect first."), false);
+
+  const process = detail.timeline.find((item) => item.kind === "turn-process");
+  assert.equal(process.title, "已处理 7m 38s");
+  assert.equal(process.items.some((item) => item.role === "assistant" && item.text === "I'll inspect first."), true);
+  assert.equal(process.items.some((item) => item.kind === "tool-group" && item.commandCount === 1), true);
 });
 
 test("remote messages and action decisions are persisted to local state", () => {

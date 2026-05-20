@@ -599,6 +599,82 @@ button {
   padding: 0;
 }
 
+.timeline-item.turn-process {
+  border-color: transparent;
+  border-left-color: transparent;
+  padding: 0;
+  background: transparent;
+}
+
+.process-details > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 2px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.process-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.process-details > summary::after {
+  content: "▸";
+  color: var(--muted);
+  font-size: 12px;
+  transition: transform 0.16s ease;
+}
+
+.process-details[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.process-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.process-list {
+  display: grid;
+  gap: 10px;
+  padding: 10px 0 0;
+}
+
+.process-entry {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.process-entry > .timeline-item.tool-group {
+  margin: 0;
+}
+
+.process-entry-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.process-entry-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
 .tool-group-details > summary {
   display: flex;
   min-height: 50px;

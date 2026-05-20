@@ -207,6 +207,7 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
   const timeline = [];
   const progress = [];
   const stats = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+  const turns = new Map();
   let id = idFromRolloutName(filePath);
   let cwd = "";
   let model = "";
@@ -219,6 +220,7 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
   let lastOutput = "";
   let commitHash = "";
   let patchChanges = null;
+  let currentTurnId = "";
   let messageCount = 0;
   let toolCount = 0;
   let updatedAt = stat?.mtime?.toISOString();
@@ -247,10 +249,28 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
 
     if (row.type === "event_msg") {
       const eventType = row.payload?.type;
-      if (eventType === "task_started") status = "running";
+      if (eventType === "task_started") {
+        status = "running";
+        currentTurnId = row.payload?.turn_id || `turn-${row.timestamp || timeline.length}`;
+        rememberTurn(turns, currentTurnId, {
+          id: currentTurnId,
+          startedAt: row.payload?.started_at || row.timestamp,
+          completed: false
+        });
+      }
       if (["task_complete", "task_completed", "turn_complete", "task_stopped"].includes(eventType)) {
         status = "idle";
         pendingAction = null;
+        const turnId = row.payload?.turn_id || currentTurnId;
+        if (turnId) {
+          rememberTurn(turns, turnId, {
+            id: turnId,
+            completed: true,
+            completedAt: row.payload?.completed_at || row.timestamp,
+            durationMs: row.payload?.duration_ms
+          });
+        }
+        currentTurnId = "";
       }
       if (eventType === "token_count") {
         const usage = row.payload?.info?.total_token_usage || row.payload?.info?.last_token_usage;
@@ -285,7 +305,8 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
           role: item.role || "assistant",
           title: roleTitle(item.role),
           text: truncateForDetail(text, detail),
-          at: row.timestamp
+          at: row.timestamp,
+          turnId: currentTurnId
         });
       }
     }
@@ -310,7 +331,8 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
         role: "tool",
         title: name,
         text: summarizeToolCall(name, item.arguments || item.call?.arguments),
-        at: row.timestamp
+        at: row.timestamp,
+        turnId: currentTurnId
       });
     }
 
@@ -323,13 +345,14 @@ function parseSessionFile(filePath, { detail, maxDetailItems = DEFAULT_DETAIL_IT
           role: "tool",
           title: "Tool output",
           text: truncateForDetail(output, detail),
-          at: row.timestamp
+          at: row.timestamp,
+          turnId: currentTurnId
         });
       }
     }
   }
 
-  const compactedTimeline = detail ? compactTimeline(timeline, status) : undefined;
+  const compactedTimeline = detail ? compactTimeline(timeline, status, turns) : undefined;
   const parsed = {
     id,
     cwd,
@@ -423,7 +446,7 @@ function readJsonl(filePath) {
   }
 }
 
-function compactTimeline(timeline, status) {
+function compactTimeline(timeline, status, turns = new Map()) {
   const compacted = [];
   let group = null;
 
@@ -438,6 +461,7 @@ function compactTimeline(timeline, status) {
       title: isFinal && status === "running" ? `正在运行 ${lastTool?.title || "工具"}` : `已运行 ${commandCount} 条命令`,
       text: clip(group.items.map((item) => `${item.title}: ${collapseWhitespace(item.text)}`).join("\n"), MAX_PREVIEW_CHARS),
       at: group.at,
+      turnId: group.turnId,
       commandCount,
       items: group.items
     });
@@ -450,10 +474,12 @@ function compactTimeline(timeline, status) {
         group = {
           id: `tool-group-${item.id || compacted.length}`,
           at: item.at,
+          turnId: item.turnId,
           items: []
         };
       }
       group.at = item.at || group.at;
+      group.turnId = group.turnId || item.turnId;
       group.items.push(item);
       continue;
     }
@@ -461,7 +487,96 @@ function compactTimeline(timeline, status) {
     compacted.push(item);
   }
   flushGroup(true);
-  return compacted;
+  return foldCompletedTurns(compacted, turns);
+}
+
+function foldCompletedTurns(timeline, turns) {
+  const folded = [];
+  let segment = [];
+  let activeTurnId = "";
+
+  function flushSegment() {
+    if (!segment.length) return;
+    const turn = turns.get(activeTurnId);
+    if (!activeTurnId || !turn?.completed) {
+      folded.push(...segment);
+      segment = [];
+      activeTurnId = "";
+      return;
+    }
+
+    const finalAssistantIndex = findLastIndex(segment, (item) => item.kind === "message" && item.role === "assistant");
+    if (finalAssistantIndex < 0) {
+      folded.push(...segment);
+      segment = [];
+      activeTurnId = "";
+      return;
+    }
+
+    const processItems = [];
+    for (let index = 0; index < segment.length; index += 1) {
+      const item = segment[index];
+      if (item.role === "user") {
+        folded.push(item);
+      } else if (index === finalAssistantIndex) {
+        folded.push(item);
+      } else {
+        processItems.push(item);
+      }
+    }
+
+    if (processItems.length) {
+      folded.push({
+        id: `turn-process-${activeTurnId}`,
+        kind: "turn-process",
+        role: "tool",
+        title: turn.durationMs ? `已处理 ${formatDuration(turn.durationMs)}` : "已处理",
+        text: clip(processItems.map((item) => `${item.title}: ${collapseWhitespace(item.text)}`).join("\n"), MAX_PREVIEW_CHARS),
+        at: turn.completedAt || segment.at(-1)?.at,
+        turnId: activeTurnId,
+        items: processItems
+      });
+    }
+
+    segment = [];
+    activeTurnId = "";
+  }
+
+  for (const item of timeline) {
+    const turnId = item.turnId || "";
+    if (!turnId) {
+      flushSegment();
+      folded.push(item);
+      continue;
+    }
+    if (activeTurnId && activeTurnId !== turnId) flushSegment();
+    activeTurnId = turnId;
+    segment.push(item);
+  }
+  flushSegment();
+  return folded;
+}
+
+function rememberTurn(turns, id, patch) {
+  if (!id) return;
+  turns.set(id, {
+    ...(turns.get(id) || {}),
+    ...patch
+  });
+}
+
+function findLastIndex(items, predicate) {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (predicate(items[index], index)) return index;
+  }
+  return -1;
+}
+
+function formatDuration(value) {
+  const totalSeconds = Math.max(0, Math.round(Number(value || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
 function mergePatchChanges(current, payload) {

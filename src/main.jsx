@@ -882,6 +882,9 @@ function ActionPrompt({ session, authToken, backendUrl }) {
 
 function TimelineItem({ item, sessionId, authToken, backendUrl }) {
   const [collapsed, setCollapsed] = useState(false);
+  if (item.kind === "turn-process") {
+    return <ProcessGroup item={item} sessionId={sessionId} authToken={authToken} backendUrl={backendUrl} />;
+  }
   if (item.kind === "tool-group") {
     return <ToolGroup item={item} sessionId={sessionId} authToken={authToken} backendUrl={backendUrl} />;
   }
@@ -924,6 +927,44 @@ function TimelineItem({ item, sessionId, authToken, backendUrl }) {
           {!isTool && !isToolOutput && <MarkdownContent text={item.text} sessionId={sessionId} authToken={authToken} backendUrl={backendUrl} />}
         </>
       )}
+    </article>
+  );
+}
+
+function ProcessGroup({ item, sessionId, authToken, backendUrl }) {
+  return (
+    <article className="timeline-item turn-process">
+      <details className="process-details">
+        <summary>
+          <span className="process-title">{item.title}</span>
+          <time>{formatTime(item.at)}</time>
+        </summary>
+        <div className="process-list">
+          {(item.items || []).map((entry, index) => (
+            <div className={`process-entry ${entry.kind}`} key={`${entry.id}-${index}`}>
+              {entry.kind === "tool-group" ? (
+                <ToolGroup item={entry} sessionId={sessionId} authToken={authToken} backendUrl={backendUrl} />
+              ) : entry.kind === "message" ? (
+                <>
+                  <div className="process-entry-head">
+                    <strong>{entry.title}</strong>
+                    <time>{formatTime(entry.at)}</time>
+                  </div>
+                  <MarkdownContent text={entry.text} sessionId={sessionId} authToken={authToken} backendUrl={backendUrl} />
+                </>
+              ) : (
+                <>
+                  <div className="process-entry-head">
+                    <strong>{entry.title}</strong>
+                    <time>{formatTime(entry.at)}</time>
+                  </div>
+                  <pre className="tool-summary">{entry.text}</pre>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </details>
     </article>
   );
 }
