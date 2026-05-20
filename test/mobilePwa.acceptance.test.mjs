@@ -183,6 +183,7 @@ test("critical mobile actions remain reachable from the authenticated workspace"
 });
 
 test("timeline renders markdown, local images, and compact tool summaries", () => {
+  const processGroupSource = app.slice(app.indexOf("function ProcessGroup"), app.indexOf("function ToolGroup"));
   assert.match(app, /<TimelineItem key=\{`\$\{item\.id\}-\$\{index\}`\} item=\{item\} sessionId=\{session\.id\} authToken=\{authToken\} backendUrl=\{backendUrl\} \/>/);
   assert.match(app, /function MarkdownContent\(\{ text, sessionId, authToken, backendUrl \}\)/);
   assert.match(app, /const \[collapsed, setCollapsed\] = useState\(false\)/);
@@ -193,6 +194,7 @@ test("timeline renders markdown, local images, and compact tool summaries", () =
   assert.match(app, /className="process-details"/);
   assert.match(app, /className="process-list"/);
   assert.match(app, /className="process-entry-head"/);
+  assert.doesNotMatch(processGroupSource, /formatTime\(item\.at\)/);
   assert.match(app, /function ToolGroup\(\{ item, sessionId, authToken, backendUrl \}\)/);
   assert.match(app, /item\.kind === "tool-group"/);
   assert.match(app, /className="tool-group-details"/);
@@ -217,6 +219,7 @@ test("timeline renders markdown, local images, and compact tool summaries", () =
   assert.match(css, /\.tool-details\s*\{/);
   assert.match(css, /\.timeline-item\.turn-process\s*\{/);
   assert.match(css, /\.process-details > summary\s*\{/);
+  assert.match(css, /\.process-details:not\(\[open\]\) \.process-list\s*\{/);
   assert.match(css, /\.process-list\s*\{/);
   assert.match(css, /\.process-entry-head\s*\{/);
   assert.match(css, /\.tool-group-details > summary\s*\{/);

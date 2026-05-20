@@ -513,18 +513,21 @@ function foldCompletedTurns(timeline, turns) {
       return;
     }
 
+    const userItems = [];
     const processItems = [];
+    let finalAssistantItem = null;
     for (let index = 0; index < segment.length; index += 1) {
       const item = segment[index];
       if (item.role === "user") {
-        folded.push(item);
+        userItems.push(item);
       } else if (index === finalAssistantIndex) {
-        folded.push(item);
+        finalAssistantItem = item;
       } else {
         processItems.push(item);
       }
     }
 
+    folded.push(...userItems);
     if (processItems.length) {
       folded.push({
         id: `turn-process-${activeTurnId}`,
@@ -537,6 +540,7 @@ function foldCompletedTurns(timeline, turns) {
         items: processItems
       });
     }
+    if (finalAssistantItem) folded.push(finalAssistantItem);
 
     segment = [];
     activeTurnId = "";

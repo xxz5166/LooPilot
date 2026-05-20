@@ -605,6 +605,10 @@ test("completed turns keep the final answer and fold intermediate work", () => {
   assert.equal(process.title, "已处理 7m 38s");
   assert.equal(process.items.some((item) => item.role === "assistant" && item.text === "I'll inspect first."), true);
   assert.equal(process.items.some((item) => item.kind === "tool-group" && item.commandCount === 1), true);
+
+  const processIndex = detail.timeline.findIndex((item) => item.kind === "turn-process");
+  const finalIndex = detail.timeline.findIndex((item) => item.role === "assistant" && item.text === "Final answer only.");
+  assert.ok(processIndex < finalIndex);
 });
 
 test("remote messages and action decisions are persisted to local state", () => {

@@ -937,7 +937,6 @@ function ProcessGroup({ item, sessionId, authToken, backendUrl }) {
       <details className="process-details">
         <summary>
           <span className="process-title">{item.title}</span>
-          <time>{formatTime(item.at)}</time>
         </summary>
         <div className="process-list">
           {(item.items || []).map((entry, index) => (

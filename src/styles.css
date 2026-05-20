@@ -618,6 +618,10 @@ button {
   list-style: none;
 }
 
+.process-details:not([open]) .process-list {
+  display: none;
+}
+
 .process-details > summary::-webkit-details-marker {
   display: none;
 }
@@ -634,12 +638,22 @@ button {
 }
 
 .process-title {
-  flex: 1;
+  display: inline-flex;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid rgba(242, 189, 93, 0.42);
+  border-radius: 999px;
+  padding: 0 8px;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--yellow);
+  background: rgba(242, 189, 93, 0.12);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .process-list {
