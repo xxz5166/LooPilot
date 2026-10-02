@@ -1,6 +1,7 @@
 # LooPilot
 
 Mobile companion for Codex Desktop sessions.
+Codex Desktop 会话的手机端伴侣。
 
 Languages: English | [简体中文](README.zh-CN.md)
 
