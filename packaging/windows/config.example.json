@@ -1,0 +1,12 @@
+{
+  "host": "127.0.0.1",
+  "port": 4317,
+  "tunnelCommand": "cloudflared",
+  "tunnelArgs": [
+    "tunnel",
+    "--url",
+    "{LOCAL_URL}"
+  ],
+  "tunnelUrl": "",
+  "tunnelCwd": ""
+}

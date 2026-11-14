@@ -17,7 +17,7 @@ import {
   normalizeApprovalScope,
   normalizeSandboxMode
 } from "./options.mjs";
-import { startPublicTunnel } from "./tunnel.mjs";
+import { startConfiguredTunnel } from "./tunnel.mjs";
 import {
   enqueueRemoteMessage,
   ensureStateDirs,
@@ -34,6 +34,9 @@ const buildDir = path.join(root, "build");
 const attachmentsDir = path.join(getStateDir(), "attachments");
 const args = new Set(process.argv.slice(2));
 const port = Number(process.env.PORT || 4317);
+const host = String(process.env.LOOPILOT_HOST || "127.0.0.1").trim() || "127.0.0.1";
+const requestedTunnelMode = getArgValue("--tunnel") || process.env.LOOPILOT_TUNNEL_MODE || "none";
+const tunnelEnabled = args.has("--public") || !["none", "off", "disabled"].includes(String(requestedTunnelMode).toLowerCase());
 const authToken = getAuthToken();
 let pairingCode = getPairingCode();
 const app = express();
@@ -73,7 +76,8 @@ function corsForShellClients(req, res, next) {
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
-    publicMode: args.has("--public"),
+    publicMode: tunnelEnabled,
+    localUrl: `http://127.0.0.1:${port}`,
     bridgeMode: process.env.LOOPILOT_BRIDGE_MODE || "app-server",
     authRequired: Boolean(authToken)
   });
@@ -94,7 +98,8 @@ app.get("/api/system", (_req, res) => {
   res.json({
     ok: true,
     codexHome: getCodexHome(),
-    publicMode: args.has("--public"),
+    publicMode: tunnelEnabled,
+    localUrl: `http://127.0.0.1:${port}`,
     bridgeMode: process.env.LOOPILOT_BRIDGE_MODE || "app-server",
     authRequired: Boolean(authToken)
   });
@@ -188,7 +193,7 @@ if (args.has("--prod")) {
       middlewareMode: true,
       hmr: false,
       ws: false,
-      allowedHosts: args.has("--public") ? [".trycloudflare.com"] : []
+      allowedHosts: tunnelEnabled ? true : []
     },
     appType: "spa"
   });
@@ -224,18 +229,23 @@ watcher.on("all", () => {
   }, 120);
 });
 
-server.listen(port, async () => {
-  const localUrl = `http://localhost:${port}`;
+server.listen(port, host, async () => {
+  const localUrl = `http://127.0.0.1:${port}`;
   const localUrlWithToken = `${localUrl}/?token=${encodeURIComponent(authToken)}`;
   console.log(`LooPilot running at ${localUrl}`);
-  console.log(`Authorized URL: ${localUrlWithToken}`);
-  console.log(`Pairing code: ${pairingCode}`);
-  if (!args.has("--public")) {
+  if (process.env.LOOPILOT_DESKTOP_MODE === "1") {
+    console.log("Authorized URL: [hidden]");
+    console.log("Pairing code: [hidden]");
+  } else {
+    console.log(`Authorized URL: ${localUrlWithToken}`);
+    console.log(`Pairing code: ${pairingCode}`);
+  }
+  if (!tunnelEnabled) {
     await printPairingQr(localUrl, pairingCode);
   }
   console.log(`Reading Codex sessions from ${getCodexHome()}`);
-  if (args.has("--public")) {
-    await startTunnel(port);
+  if (tunnelEnabled) {
+    await startTunnel(port, args.has("--public") ? "cloudflare" : requestedTunnelMode);
   }
 });
 
@@ -258,10 +268,11 @@ function stripViteClientPlugin() {
   };
 }
 
-async function startTunnel(targetPort) {
+async function startTunnel(targetPort, mode) {
   try {
     const printedUrls = new Set();
-    tunnelHandle = await startPublicTunnel(targetPort, {
+    tunnelHandle = await startConfiguredTunnel(targetPort, {
+      mode,
       onUrl: async (publicUrl) => {
         if (printedUrls.has(publicUrl)) return;
         printedUrls.add(publicUrl);
@@ -269,7 +280,7 @@ async function startTunnel(targetPort) {
       }
     });
   } catch (error) {
-    console.error(`Unable to start public tunnel: ${error.message}`);
+    console.error(`Unable to start tunnel: ${error.message}`);
   }
 }
 
@@ -298,6 +309,14 @@ function isAllowedShellOrigin(origin) {
   } catch {
     return false;
   }
+}
+
+function getArgValue(name) {
+  const prefix = `${name}=`;
+  const inline = process.argv.find((arg) => arg.startsWith(prefix));
+  if (inline) return inline.slice(prefix.length);
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] || "" : "";
 }
 
 function shutdown() {

@@ -8,12 +8,16 @@
   "bin": {
     "loopilot": "bin/loopilot.mjs"
   },
+  "main": "dist-electron/main.js",
   "files": [
     "bin",
     "server",
     "build",
     "public",
+    "desktop-version.json",
+    "package.json",
     "README.md",
+    "README.en-US.md",
     "README.zh-CN.md"
   ],
   "engines": {
@@ -32,6 +36,13 @@
     "dev:safe": "node server/safe.mjs",
     "dev:public": "node server/index.mjs --public",
     "build": "vite build",
+    "build:desktop": "npm run build && tsc -p tsconfig.electron.json && vite build --config electron/vite.config.ts",
+    "dev:desktop": "concurrently -k \"vite --config electron/vite.config.ts\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://127.0.0.1:5174 && electron .\"",
+    "start:desktop": "electron .",
+    "check:desktop": "node scripts/check-desktop-env.mjs",
+    "build:win": "node scripts/build-windows.mjs",
+    "build:win:setup": "npm run build:win",
+    "build:win:portable": "npm run build:win",
     "preview": "node server/index.mjs --prod",
     "lint": "eslint .",
     "test": "node --test",
@@ -40,6 +51,7 @@
     "accept:browser": "node scripts/accept-browser.mjs",
     "accept:public": "node scripts/accept-public.mjs",
     "accept:bridge": "node scripts/accept-bridge.mjs",
+    "package:win": "npm run build:win",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:debug": "npm run android:sync && cd android && gradlew.bat assembleDebug -I china-mirrors.init.gradle",
@@ -64,6 +76,52 @@
     "@capacitor/cli": "^8.3.4",
     "eslint": "^9.33.0",
     "eslint-plugin-react": "^7.37.5",
-    "globals": "^16.3.0"
+    "globals": "^16.3.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "@types/qrcode": "^1.5.5",
+    "concurrently": "^9.1.2",
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.7.2",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.loopilot.recvt",
+    "productName": "LooPilot-recvt",
+    "executableName": "LooPilot-recvt",
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "extraMetadata": { "main": "dist-electron/main.js" },
+    "files": ["dist-electron/**/*", "electron/renderer-dist/**/*", "package.json"],
+    "extraResources": [
+      { "from": "server", "to": "loopilot/server" },
+      { "from": "bin", "to": "loopilot/bin" },
+      { "from": "build", "to": "loopilot/build" },
+      { "from": "public", "to": "loopilot/public" },
+      { "from": "desktop-version.json", "to": "loopilot/desktop-version.json" },
+      { "from": ".tmp/core-runtime/node_modules", "to": "loopilot/node_modules" },
+      { "from": "package.json", "to": "loopilot/package.json" },
+      { "from": "runtime", "to": "runtime", "filter": ["node.exe"] }
+    ],
+    "directories": { "output": "dist-recvt" },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "artifactName": "LooPilot-${ext}"
+    },
+    "nsis": {
+      "artifactName": "LooPilot-Setup.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true
+    },
+    "portable": {
+      "artifactName": "LooPilot-Portable.exe"
+    }
   }
 }

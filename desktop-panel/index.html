@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LooPilot-ele v0.1</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">LP</div>
+          <div>
+            <h1>LooPilot-ele <span>v0.1</span></h1>
+            <p>Windows 控制面板</p>
+          </div>
+        </div>
+        <div class="header-status"><i class="status-dot stopped"></i><span id="headerStatus">已停止</span></div>
+      </header>
+
+      <nav class="tabs" aria-label="控制面板导航">
+        <button class="tab active" data-tab="overview">概览</button>
+        <button class="tab" data-tab="public">公网访问</button>
+        <button class="tab" data-tab="advanced">高级设置</button>
+      </nav>
+
+      <main class="content">
+        <section class="tab-panel active" id="overview">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CONTROL CENTER</p>
+              <h2>服务概览</h2>
+            </div>
+            <span class="build-label">Build 0.1.0 · Windows x64</span>
+          </div>
+
+          <div class="overview-grid">
+            <article class="card service-card">
+              <div class="card-heading"><h3>运行状态</h3><span class="mini-badge neutral" id="serviceBadge">未运行</span></div>
+              <div class="service-summary">
+                <div class="service-icon">◈</div>
+                <div><strong id="serviceStatus">服务已停止</strong><p id="serviceDescription">启动后将运行 LooPilot 与 Codex Bridge</p></div>
+              </div>
+              <div class="status-table">
+                <div><span>健康检查</span><strong id="healthStatus">等待启动</strong></div>
+                <div><span>启动模式</span><strong id="modeStatus">本地模式</strong></div>
+                <div><span>Codex Bridge</span><strong id="bridgeStatus">未启动</strong></div>
+                <div><span>状态目录</span><strong class="path-value">%APPDATA%\\LooPilot</strong></div>
+              </div>
+              <div class="button-row">
+                <button class="button primary" id="startButton">启动服务</button>
+                <button class="button" id="stopButton" disabled>停止</button>
+                <button class="button" id="restartButton" disabled>重启</button>
+              </div>
+            </article>
+
+            <article class="card health-card">
+              <div class="card-heading"><h3>环境检查</h3><button class="text-button" id="runCheck">重新检查</button></div>
+              <div class="check-list">
+                <div class="check-item"><span class="check-icon ok">✓</span><div><strong>内置 Runtime</strong><small>Node.js 运行环境已就绪</small></div><em>正常</em></div>
+                <div class="check-item"><span class="check-icon ok">✓</span><div><strong>LooPilot 核心文件</strong><small>server · build · public</small></div><em>正常</em></div>
+                <div class="check-item"><span class="check-icon warn">!</span><div><strong>Codex CLI</strong><small>检测到 Codex Desktop</small></div><em class="warning">警告</em></div>
+                <div class="check-item"><span class="check-icon warn">!</span><div><strong>Cloudflare Tunnel</strong><small>启动公网模式时可下载</small></div><em class="warning">未配置</em></div>
+              </div>
+              <div class="safe-note"><span>盾</span><p>环境不完整时仍可进入 <strong>Safe 模式</strong>，用于测试界面和配对流程。</p></div>
+            </article>
+          </div>
+
+          <article class="card connections-card">
+            <div class="card-heading"><div><h3>连接信息</h3><p>配对码仅用于首次连接，二维码不包含长期访问 Token。</p></div><span class="live-label"><i></i>实时</span></div>
+            <div class="connection-layout">
+              <div class="connection-fields">
+                <div class="pairing-code"><span>6 位配对码</span><strong id="pairingCode">482 917</strong><button class="icon-button" data-copy="482917" title="复制配对码">□</button></div>
+                <label class="field"><span>本地访问地址</span><div class="input-with-action"><input value="http://127.0.0.1:4317" readonly /><button class="icon-button" data-copy="http://127.0.0.1:4317" title="复制地址">□</button><button class="icon-button" title="打开浏览器">↗</button></div></label>
+                <label class="field"><span>带 Token 的授权地址</span><div class="input-with-action"><input id="tokenUrl" value="http://127.0.0.1:4317/?token=••••••••••••" readonly /><button class="icon-button" id="revealToken" title="显示或隐藏 Token">◉</button><button class="icon-button" data-copy="http://127.0.0.1:4317/?token=hidden" title="复制授权地址">□</button></div></label>
+                <label class="field"><span>公网访问地址</span><div class="input-with-action"><input id="publicUrl" value="尚未启动公网隧道" readonly /><button class="icon-button" data-copy="" title="复制公网地址">□</button></div></label>
+              </div>
+              <div class="qr-panel"><div class="qr-code" aria-label="LooPilot 配对二维码"><div id="qrPattern"></div><span>LP</span></div><strong>扫码配对</strong><small>loopilot-pairing · v1</small><button class="button small" id="saveQr">保存二维码</button></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="tab-panel" id="public">
+          <div class="section-heading"><div><p class="eyebrow">NETWORK ACCESS</p><h2>公网访问</h2></div><span class="build-label">隧道进程由主进程托管</span></div>
+          <article class="card">
+            <div class="card-heading"><div><h3>启动模式</h3><p>公网模式会让 LooPilot 暴露到互联网，请确认访问 Token 与配对码不会泄露。</p></div><span class="mini-badge warning">安全提示</span></div>
+            <div class="mode-grid">
+              <label class="mode-option selected"><input type="radio" name="mode" value="local" checked /><span class="radio-dot"></span><div><strong>仅本机</strong><small>不启动公网隧道，仅允许本机访问。</small></div></label>
+              <label class="mode-option"><input type="radio" name="mode" value="quick"><span class="radio-dot"></span><div><strong>Cloudflare 临时地址</strong><small>自动生成 trycloudflare.com 地址，适合临时访问。</small></div></label>
+              <label class="mode-option"><input type="radio" name="mode" value="fixed"><span class="radio-dot"></span><div><strong>Cloudflare 固定域名</strong><small>使用已配置的 Tunnel Token 与 HTTPS 域名。</small></div></label>
+              <label class="mode-option"><input type="radio" name="mode" value="custom"><span class="radio-dot"></span><div><strong>自定义隧道</strong><small>支持 ngrok、frp、Tailscale Funnel 等程序。</small></div></label>
+            </div>
+          </article>
+          <div class="split-grid">
+            <article class="card"><div class="card-heading"><h3>Cloudflare 配置</h3><span class="mini-badge neutral">可选</span></div><label class="field"><span>固定 HTTPS 地址</span><input placeholder="https://looppilot.example.com" /></label><label class="field"><span>Tunnel Token</span><div class="input-with-action"><input type="password" placeholder="不会写入普通日志" /><button class="icon-button" title="显示 Token">◉</button></div></label><div class="form-actions"><button class="button">应用配置</button><button class="button ghost">重新生成临时地址</button></div></article>
+            <article class="card"><div class="card-heading"><h3>自定义隧道</h3><span class="mini-badge neutral">高级</span></div><label class="field"><span>程序路径</span><div class="input-with-action"><input placeholder="C:\\Tools\\cloudflared.exe" /><button class="icon-button" title="选择文件">…</button></div></label><label class="field"><span>启动参数</span><input value="tunnel --url ${LOCAL_URL}" /></label><div class="hint">支持 `${PORT}`、`${LOCAL_URL}`。Token 不允许写入命令行。</div></article>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="advanced">
+          <div class="section-heading"><div><p class="eyebrow">RUNTIME CONFIGURATION</p><h2>高级设置</h2></div><button class="button" id="exportConfig">导出配置</button></div>
+          <article class="card settings-card"><div class="card-heading"><div><h3>基础设置</h3><p>配置会保存到 `%APPDATA%\\LooPilot`，敏感字段使用系统凭据存储。</p></div><span class="mini-badge success">已保存</span></div><div class="form-grid"><label class="field"><span>服务端口</span><input id="servicePort" value="4317" /></label><label class="field"><span>日志级别</span><select><option>info</option><option>debug</option><option>warn</option><option>error</option></select></label><label class="field wide"><span>Codex Home 路径</span><input value="%USERPROFILE%\\.codex" /></label><label class="field wide"><span>Codex CLI 路径</span><input placeholder="自动检测" /></label><label class="field wide"><span>LooPilot 状态目录</span><input value="%APPDATA%\\LooPilot" /></label></div></article>
+          <article class="card settings-card"><div class="card-heading"><h3>运行选项</h3></div><div class="toggle-list"><label class="toggle-row"><span><strong>Safe 模式</strong><small>不启动 Codex Bridge，仅测试服务与配对流程。</small></span><input id="safeModeToggle" type="checkbox" /><i></i></label><label class="toggle-row"><span><strong>自动重连隧道</strong><small>隧道异常断开后自动尝试重新连接。</small></span><input type="checkbox" checked /><i></i></label><label class="toggle-row"><span><strong>登录后自动启动服务</strong><small>启动控制面板时恢复上次运行状态。</small></span><input type="checkbox" /><i></i></label></div></article>
+        </section>
+      </main>
+
+      <footer class="footer"><span>最后检查：刚刚</span><span class="footer-right"><span>状态目录可写</span><button class="button small" id="refreshButton">刷新状态</button></span></footer>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+appId: com.huangbwww.loopilot.ele
+productName: LooPilot-ele
+asar: true
+electronDist: node_modules/electron/dist
+extraMetadata:
+  main: desktop-panel/main.cjs
+files:
+  - desktop-panel/**/*
+  - desktop-version.json
+  - package.json
+extraResources:
+  - from: server
+    to: loopilot/server
+  - from: bin
+    to: loopilot/bin
+  - from: build
+    to: loopilot/build
+  - from: public
+    to: loopilot/public
+  - from: desktop-version.json
+    to: loopilot/desktop-version.json
+  - from: node_modules
+    to: loopilot/node_modules
+directories:
+  output: dist-electron
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  artifactName: LooPilot-Setup.exe
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  runAfterFinish: true
+portable:
+  artifactName: LooPilot-Portable.exe

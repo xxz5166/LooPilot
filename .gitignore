@@ -9,3 +9,5 @@ build/
 *.aab
 *.jks
 *.keystore
+.tools/
+LooPilot-go *.exe

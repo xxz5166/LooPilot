@@ -1,0 +1,31 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run package:win
+      - uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: installer/LooPilot.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LooPilot-Windows
+          path: dist/LooPilot-Setup.exe
+      - name: Attach installer to GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/LooPilot-Setup.exe

@@ -1,0 +1,324 @@
+你是一名资深 Go、Wails、React、TypeScript 和 Windows 桌面应用开发工程师。
+
+请基于以下项目开发 Windows EXE 控制面板：
+https://github.com/huangbwww/LooPilot
+
+目标：将现有 LooPilot 封装成可在新 Windows 电脑直接运行的桌面程序。用户不需要安装 Node.js、下载源码或执行 npm 命令。
+
+附件中的 AgentDock 截图仅作为界面布局和视觉风格参考，不得复制 AgentDock 品牌、Logo 或业务逻辑。
+
+一、技术方案
+
+必须使用：
+- Go
+- Wails 稳定版
+- React + TypeScript
+- Windows WebView2
+- NSIS 或 Inno Setup
+
+禁止使用 Electron。
+
+架构要求：
+- Go 作为桌面主进程，负责环境检测、配置、进程和隧道管理。
+- Wails 负责桌面窗口和前后端通信。
+- React + TypeScript 负责控制面板。
+- LooPilot 原有 Node.js 服务继续保留，不要重写核心业务。
+- 复用 LooPilot 的 server、build、public、bin、认证、配对码、WebSocket 和 Codex Bridge 逻辑。
+
+二、Node.js Runtime 和资源
+
+1. 将 Windows node.exe、LooPilot server、build、public、bin 和前端资源一起打包。
+2. 目标电脑不要求安装 Node.js。
+3. 可使用 go:embed 或 Wails 资源机制内置资源。
+4. 首次启动时释放运行文件到：
+   %LOCALAPPDATA%\\LooPilot\\runtime
+5. 配置和日志保存到：
+   %APPDATA%\\LooPilot
+6. 使用 Go 的 exec.CommandContext 启动内置 node.exe。
+7. 禁止依赖系统 PATH 中的 Node.js。
+8. 禁止把 Wails EXE 当作 node.exe 使用。
+9. 禁止通过 shell 拼接命令。
+
+三、启动模式
+
+必须支持以下模式：
+
+1. 本地模式
+- 不启动公网隧道
+- 启动 LooPilot 本地服务
+- 显示本地访问地址
+- 显示带 Token 的本地授权地址
+- 显示 6 位配对码
+- 显示局域网访问地址
+- 支持启动、停止、重启、复制和打开浏览器
+
+2. 公网模式
+- 启动 LooPilot 本地服务
+- 启动公网隧道
+- 显示公网访问地址
+- 显示公网访问二维码
+- 显示隧道状态、断线和错误信息
+- 支持自动重连
+- 停止程序时关闭 LooPilot 和隧道进程
+
+公网模式必须支持：
+- Cloudflare 临时 Tunnel
+- Cloudflare 固定域名 Tunnel
+- 自定义内网穿透程序
+- 自定义隧道命令
+
+保留原有参数：
+--public、--safe、--dev、--prod、--port
+
+Safe 模式作为诊断模式保留：只测试界面、配对、会话读取和消息排队，不启动 Codex Bridge。
+
+四、进程管理
+
+Go 必须管理以下进程：
+- LooPilot Node 服务
+- Codex Bridge
+- cloudflared
+- 自定义隧道程序
+
+要求：
+- 支持启动、停止、重启、超时和异常退出检测。
+- 读取 stdout 和 stderr。
+- 使用 Windows Job Object 或等效机制清理子进程。
+- Wails 退出时清理所有子进程。
+- 不能只关闭父进程而留下子进程。
+
+五、环境检查
+
+启动时检查：
+- Windows 版本和架构
+- WebView2 Runtime
+- 内置 node.exe
+- LooPilot 文件完整性
+- 状态目录读写权限
+- 4317 端口是否被占用
+- Codex CLI 或 Codex Desktop
+- Codex Home 和 %USERPROFILE%\\.codex
+- Codex session 文件
+- 网络连接
+- cloudflared
+- 自定义隧道程序
+- 防火墙和端口风险
+
+结果分为：正常、警告、阻断。
+
+处理规则：
+- Node.js 缺失不阻断，因为使用内置 Runtime。
+- WebView2 缺失时显示官方下载地址。
+- cloudflared 缺失时提供用户确认后的下载按钮。
+- 下载使用 HTTPS，并校验 SHA-256。
+- Codex 缺失时显示安装说明和检测路径。
+- 不得未经确认修改 PATH、注册表、防火墙或申请管理员权限。
+- 环境不完整时允许进入 Safe 模式。
+
+六、控制面板
+
+参考 AgentDock 截图，使用三个标签页：概览、公网访问、高级设置。
+
+概览页显示：
+- 服务状态
+- 健康状态
+- 当前模式
+- LooPilot 版本
+- Codex Bridge 状态
+- 启动、停止、重启和环境检查按钮
+- 6 位配对码
+- 本地访问地址
+- 带 Token 的授权地址
+- 局域网访问地址
+- 公网访问地址
+- 复制和打开浏览器按钮
+- 公网二维码和保存二维码按钮
+
+Token 默认隐藏，支持显示和隐藏。
+
+公网访问页提供：
+- 仅本机
+- Cloudflare 临时地址
+- Cloudflare 固定域名
+- 自定义内网穿透
+- 自定义隧道
+
+配置项包括：
+- 公网地址
+- Tunnel Token
+- 隧道程序路径
+- 启动参数
+- 工作目录
+- 环境变量
+- 健康检查 URL
+- 启动超时
+- 自动重连
+- 测试连接
+- 应用配置
+- 重新生成临时地址
+
+高级设置页提供：
+- 服务端口
+- Codex Home 路径
+- Codex CLI 路径
+- LooPilot 状态目录
+- Bridge 模式
+- Safe 模式
+- 日志等级
+- 自动启动
+- 自动重连
+- 界面语言
+- 配置导入和导出
+- 日志查看
+
+七、自定义隧道
+
+配置以下内容：
+- 可执行文件路径
+- 启动参数
+- 工作目录
+- 环境变量
+- 公网地址提取正则
+- 健康检查 URL
+- 启动超时
+- 自动重连
+- 停止方式
+
+支持占位符：${PORT}、${LOCAL_HOST}、${LOCAL_URL}。
+
+要求：
+- 使用 exec.CommandContext 和参数数组。
+- 禁止 shell 拼接。
+- 禁止把 Token 放入命令行、日志或二维码。
+- 隧道启动后必须验证公网地址。
+- 隧道异常退出时更新界面状态。
+- 支持手动重连。
+
+八、二维码
+
+二维码必须兼容 LooPilot 手机端配对逻辑，内容为：
+
+{
+  "type": "loopilot-pairing",
+  "version": 1,
+  "server": "本地或公网地址",
+  "code": "6位配对码"
+}
+
+二维码不得包含长期访问 Token。必须支持显示、保存 PNG、复制地址，并在公网地址变化后自动刷新。
+
+九、Wails 接口和事件
+
+实现 Go 方法：
+- CheckEnvironment
+- GetEnvironmentReport
+- StartLocalMode
+- StartPublicMode
+- StartSafeMode
+- StopService
+- RestartService
+- GetRuntimeStatus
+- GetConnectionInfo
+- GetLogs
+- SaveSettings
+- LoadSettings
+- ResetSettings
+- TestTunnel
+- InstallCloudflared
+- OpenBrowser
+- SelectFile
+- ExportConfig
+- ImportConfig
+
+通过 Wails Events 推送结构化事件：
+- service-status
+- health-status
+- environment-check
+- pairing-code
+- local-url
+- authorized-url
+- lan-url
+- public-url
+- tunnel-status
+- bridge-status
+- log-line
+- progress
+- warning
+- error
+
+十、配置和安全
+
+配置目录：%APPDATA%\\LooPilot
+运行目录：%LOCALAPPDATA%\\LooPilot\\runtime
+日志目录：%APPDATA%\\LooPilot\\logs
+
+保存端口、启动模式、Bridge 模式、Codex 路径、隧道配置、日志等级、自动启动和自动重连设置。
+
+Token、Tunnel Token 和密码使用 Windows DPAPI 或 Credential Manager 保存，不得明文写入普通日志。
+
+必须满足：
+- 保留 API 和 WebSocket 认证。
+- 保留配对失败限制。
+- Token 默认隐藏。
+- Token 不进入命令行、日志和二维码。
+- 公网模式启动前显示安全提示。
+- 不默认申请管理员权限。
+- 不默认修改 PATH、防火墙或系统安全设置。
+- 退出时清理 Node、Codex、cloudflared 和自定义隧道进程。
+- 日志导出前自动脱敏。
+
+十一、构建和交付
+
+提供以下命令或脚本：
+- wails dev
+- wails build
+- wails build -clean -platform windows/amd64
+- Windows 安装包构建
+- Windows 便携版构建
+- 环境检查
+- 自动化测试
+
+最终生成：
+- LooPilot-Portable.exe
+- LooPilot-Setup.exe
+
+如果单文件便携版无法包含全部 Runtime，则生成便携目录，并提供 README 说明，但必须优先尝试使用 go:embed 实现单文件版本。
+
+十二、测试和验收
+
+必须测试：
+- 配置读写
+- DPAPI 加密
+- Token 脱敏
+- 端口占用
+- 环境检测
+- Node 启停
+- 子进程清理
+- Cloudflare Tunnel
+- 自定义隧道
+- 公网地址解析
+- 二维码内容
+- Safe 模式
+- 本地模式
+- 公网模式
+- Wails 前后端事件
+
+最终必须验证：
+1. 新电脑没有 Node.js 时 EXE 可以启动。
+2. 没有源码时 EXE 可以运行。
+3. 本地模式可以启动 LooPilot。
+4. 可以显示 6 位配对码和带 Token 的本地地址。
+5. 公网模式可以启动 Cloudflare Tunnel。
+6. 可以显示公网地址和二维码。
+7. 手机扫描二维码可以完成配对。
+8. Safe 模式不会启动 Codex Bridge。
+9. 端口冲突时可以修改端口。
+10. Codex 缺失时显示明确提示。
+11. cloudflared 缺失时可以经用户确认后下载。
+12. 自定义隧道可以启动、停止和重连。
+13. 关闭窗口后所有子进程都退出。
+14. Token 不出现在日志、命令行和二维码中。
+15. 可以生成 Portable 版本和 Setup 安装包。
+16. 原有 LooPilot 的 npm 启动方式和业务逻辑不能被破坏。
+
+请先完整检查 LooPilot 仓库结构和启动逻辑，再开始编码。不要只输出方案，必须实际创建代码、配置、测试和构建脚本。遇到仓库实际结构与假设不一致时，以源码为准，禁止凭空重写或进行无关重构。

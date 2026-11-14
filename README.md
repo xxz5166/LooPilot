@@ -1,105 +1,131 @@
 # LooPilot
 
-Mobile companion for Codex Desktop sessions.
+Codex Desktop 会话的手机端伴侣。
 
-Languages: English | [简体中文](README.zh-CN.md)
+语言：简体中文 | [English](README.en-US.md)
 
-## Why I built this
+## 我为什么做这个
 
-I built LooPilot for the same reason many people build mobile Codex companions: I wanted to check on my Codex work during lunch, on the way home, or during a short break away from my Windows machine. The name is intentionally a little silly. It can read like "loop pilot", a small co-pilot that keeps a Codex loop moving, and also like "loo pilot", because sometimes the most realistic mobile workflow is checking whether Codex is still alive while you are away from your desk, including those very serious restroom status checks 😄.
+我做 LooPilot 的初衷，和很多类似工具的开发者差不多：希望中午吃饭、晚上回家、或者临时离开 Windows 工作机的时候，也能用手机看一眼 Codex 的工作情况，必要时继续对话或处理授权。名字本身也有一点玩笑意味。它可以理解成 `loop pilot`，像一个帮你维持 Codex 工作循环的小领航员；也可以理解成 `loo pilot`，毕竟有时候真实场景就是离开工位时顺手看一眼 Codex 还在不在干活，甚至上个厕所也想确认它有没有继续推进，哈哈哈 😄。
 
-Before writing it, I tried projects such as Happy, Hapi, Remodex, and a few similar tools. They were useful, but none of them quite fit my own setup. I use Android and Windows, I switch between Codex Desktop and the CLI, and at the moment I use the desktop app more often. What I wanted was not just a remote CLI panel, but something closer to a mobile version of Codex Desktop: project-grouped conversations, live session state, approvals, model and reasoning controls, and the ability to continue a desktop conversation from my phone.
+在开始写之前，我试过 Happy、Hapi、Remodex 以及一些类似项目。它们都有价值，但和我自己的使用环境不完全贴合。我目前主要是 Android + Windows，同时会用 Codex Desktop 和 CLI，而且现在桌面端使用频率更高。我想要的不是一个单纯的远程 CLI 面板，而是更接近“手机版 Codex Desktop”的东西：按项目分组的会话列表、实时会话状态、授权/选择提醒、模型和推理强度控制，以及从手机继续当前桌面会话的能力。
 
-The official Codex mobile story is already moving in a good direction for the iPhone + Mac combination, which makes me even more eager to see Android + Windows get the same kind of first-class support. Until that happens, LooPilot is my small, slightly stubborn workaround for the setup I actually use every day.
+现在官方已经在 iPhone + Mac 组合上开始支持移动端体验了，这个方向本身挺让人期待，也让我更希望 Android + Windows 能尽快获得同等级的官方支持。在那之前，LooPilot 就算是我给自己这个日常组合先垫上的一个小补丁。
 
-After testing it for a while, I also became more aware of the limits of this idea. A lot of real development work still depends on seeing the Windows machine directly: checking a running app, inspecting UI changes, watching a local preview, or dealing with tools that are not meaningful through text alone. On the phone, LooPilot is good for reading progress, nudging Codex, answering approvals, sending a small follow-up, or making a quick change request. It is not a full replacement for sitting at the machine.
+不过测试一段时间后，我也越来越清楚这个方向的边界。很多真实开发场景仍然需要配合 Windows 机器看效果：看本地运行的应用、检查 UI 改动、观察预览窗口、处理一些只有桌面环境里才有意义的工具反馈。手机端更适合看进度、催一下 Codex、处理授权、补一句需求，或者顺手改一个小点。它并不能真正替代坐在电脑前开发。
 
-There is also a synchronization tradeoff. Messages sent from LooPilot go through Codex's local app-server bridge and local session files, so they can be recorded and followed by LooPilot, but Codex Desktop itself does not always reflect those externally-started turns as if they were typed directly into the desktop UI. If the goal is truly to operate Codex from outside with full visual feedback, remote desktop from the phone may still be faster and more honest. Modern phone input methods already make voice dictation into a remote desktop session surprisingly workable, which is also why LooPilot does not try to add its own voice input.
+这里还有一个同步上的取舍。LooPilot 发送的消息会通过本地 `codex app-server` bridge 和本地 session 文件进入 Codex 会话，因此 LooPilot 自己可以记录和跟进这些消息；但 Codex Desktop 官方窗口并不总是会把这种外部启动的 turn 像你直接在桌面 UI 输入一样实时显示出来。如果目标是在外面用手机完整操作 Codex 并且要看到全部视觉反馈，手机远程桌面有时候反而更直接。现在手机输入法语音转文字也很好用，远程桌面里直接语音输入并不麻烦，这也是 LooPilot 没有再单独做语音输入的原因。
 
-So LooPilot is intentionally scoped as a practical companion, not a perfect mobile clone. It is useful enough for my own "check in and steer Codex" workflow, and maybe it will be useful to someone else with a similar Android + Windows setup. If you run into issues or have a workflow that would make it more useful, feel free to open an issue.
+所以 LooPilot 暂时会停留在一个“实用伴侣”的定位，而不是完美的移动版 Codex。它对我自己的“看一眼、推一把、处理一下授权”工作流已经够用。也许有人正好有类似的 Android + Windows 使用场景，可以拿去试试；如果遇到问题或有更适合的工作流，欢迎提 Issue。
 
-## Run
+## 运行
 
-Run without cloning the repository:
+## Windows 一键安装
+
+发布页提供 `LooPilot-Setup.exe`，双击即可安装。安装完成后，开始菜单会提供普通模式、安全队列模式、临时公网隧道和自定义隧道四种启动方式。
+
+默认本机地址使用 `http://127.0.0.1:4317`，不会使用 `localhost`。安装后可在 `%APPDATA%\LooPilot\config.json` 配置端口、监听地址和内网穿透程序。
+
+不下载源码，直接运行：
 
 ```bash
 npx loopilot
 ```
 
-For a public URL through a temporary tunnel:
+通过临时 Cloudflare Tunnel 获取公网地址：
 
 ```bash
 npx loopilot --public
 ```
 
-Safe mode queues phone messages without starting Codex bridge processes:
+Safe mode 只把手机消息放入队列，不启动 Codex bridge 进程：
 
 ```bash
 npx loopilot --safe
 ```
 
-From source:
+从源码运行：
 
 ```bash
 npm install
 npm run dev
 ```
 
-The server prints an `Authorized URL` containing a local access token and a 6-digit pairing code. On a phone, enter the pairing code first; the browser receives and stores the device token. Random pairing codes rotate after a successful exchange. You can also paste the full token into the login prompt.
+服务启动后会打印一个包含本地访问 token 的 `Authorized URL`，以及一个 6 位配对码。手机端优先输入配对码；浏览器会拿到并保存设备 token。随机配对码在成功配对后会自动轮换。你也可以直接把完整 token 粘贴到登录框。
 
-When a Codex session needs confirmation, authorization, or a choice, the PWA shows the pending request in the session and can use browser notifications plus vibration after notification permission is granted.
+当 Codex 会话需要确认、授权或选择时，PWA 会在对应会话里显示待处理请求；手机浏览器授权通知权限后，也可以使用浏览器通知和震动提醒。
 
-To test only viewing/syncing and queue phone messages without starting Codex bridge processes:
+从源码运行 safe mode：
 
 ```bash
 npm run dev:safe
 ```
 
-For a one-command local acceptance check that starts safe mode, pairs with a test code, reads local Codex sessions, verifies WebSocket snapshots, and then stops the server:
+本地一键验收检查：
 
 ```bash
 npm run accept:safe
 ```
 
-From source, for a public URL through a temporary tunnel:
+这个命令会启动 safe mode、使用测试配对码配对、读取本地 Codex 会话、验证 WebSocket 快照，然后停止服务。
+
+## 公网访问
+
+从源码运行公网模式：
 
 ```bash
 npm run dev:public
 ```
 
-`dev:public` starts the app and downloads a private `cloudflared` binary into the LooPilot state directory on first run, then prints a public `trycloudflare.com` URL. Use the pairing code printed at startup to sign in from the phone. The tunnel uses HTTP/2 mode.
+`dev:public` 会启动应用，并在第一次运行时把私有的 `cloudflared` 二进制下载到 LooPilot 状态目录，然后打印一个 `trycloudflare.com` 公网地址。手机端用启动时打印的配对码登录即可。这个 tunnel 使用 HTTP/2 模式。
 
-The current public-access flow is intentionally a temporary tunnel mode. The `trycloudflare.com` subdomain changes every time the tunnel is restarted, so after restarting LooPilot you normally need to scan or enter the new address and pair again. You can choose whichever client fits your phone best: open the web page directly, install/use it as a PWA, or use the Android APK. The tradeoff is that a changing domain makes browser bookmarks and PWA installs less convenient, which is why the APK includes address entry and QR scanning. If you want a stable address without reinstalling or reconnecting every time, you can also run LooPilot through your own virtual private network / mesh network and connect to the machine by its private IP. That setup is outside LooPilot itself, so users who need it can choose their preferred network tool.
+目前的公网访问走的是临时 tunnel 模式，`trycloudflare.com` 子域名每次启动都可能变化，所以重启 LooPilot 之后通常需要重新扫码或重新输入地址，再用新的配对码连接。手机端可以自由选择直接网页访问、安装/使用 PWA，或者使用 Android APK。这个方案的坏处是域名会变，网页书签和 PWA 每次都要跟着换地址，所以 LooPilot 额外做了 APK 里的手动输入地址和扫码连接。如果你觉得临时域名还是不方便，也可以自己组虚拟内网或异地组网，然后通过内网 IP 访问本机服务；这部分不绑定 LooPilot，有需要的用户可以按自己的网络工具来配置。
 
-To run the public tunnel acceptance check in one command:
+公网模式的一键验收检查：
 
 ```bash
 npm run accept:public
 ```
 
-`accept:public` starts `--public`, waits for a public `trycloudflare.com` URL, verifies local health, pairing, sessions, and WebSocket snapshots, then stops the server. It may download and run `cloudflared`, so use `accept:safe` when you want to avoid external processes.
+`accept:public` 会启动 `--public`，等待 `trycloudflare.com` 地址，验证本地 health、配对、sessions 和 WebSocket 快照，然后停止服务。它可能会下载并运行 `cloudflared`；如果你不想启动外部进程，用 `accept:safe`。
 
-To run the real Codex app-server bridge acceptance check, choose a target session explicitly:
+## Codex bridge 验收
+
+运行真实的 Codex app-server bridge 验收前，需要显式指定目标会话：
 
 ```bash
 $env:LOOPILOT_ACCEPT_SESSION_ID = "<session-id>"
 npm run accept:bridge
 ```
 
-`accept:bridge` sends a short message through the app-server bridge and disables CLI fallback for the check, so a failed app-server bridge fails the acceptance run instead of starting `codex resume`. Use `LOOPILOT_ACCEPT_USE_LATEST=1` only after confirming the newest session is the intended target.
+`accept:bridge` 会通过 app-server bridge 发送一条短消息，并禁用 CLI fallback。这样 app-server bridge 失败时会直接让验收失败，而不是再启动 `codex resume`。只有在确认最新会话就是目标会话时，才使用 `LOOPILOT_ACCEPT_USE_LATEST=1`。
 
-The app reads Codex Desktop session JSONL files from `~/.codex`, streams changes to the web UI, and sends phone messages through a local `codex app-server` WebSocket bridge. Bridge activity is also recorded under the LooPilot state directory.
+LooPilot 会读取 `~/.codex` 下的 Codex Desktop session JSONL 文件，把变化推送到 Web UI，并通过本地 `codex app-server` WebSocket bridge 发送手机端消息。Bridge 活动也会记录在 LooPilot 状态目录里。
 
-Default local URL: `http://localhost:4317`.
+默认本地地址：`http://127.0.0.1:4317`。
 
-Final acceptance steps are tracked in `docs/ACCEPTANCE_RUNBOOK.md`.
+## 自定义隧道和内网穿透
 
-## Notes
+除了临时 Cloudflare Tunnel，还可以使用 frp、ngrok、ssh 反向转发、Tailscale Funnel 或其他程序。设置以下环境变量后运行 `--tunnel custom`：
 
-- The access token is stored in the LooPilot state directory, or can be set with `LOOPILOT_TOKEN`.
-- The pairing code is stored in the LooPilot state directory, or can be set with `LOOPILOT_PAIRING_CODE`.
-- The default state directory is project `.loopilot`; if that directory is not writable, LooPilot falls back to the user state directory, then the system temp directory. Set `LOOPILOT_STATE_DIR` to choose it explicitly.
-- Set `LOOPILOT_BRIDGE_MODE=queue` to test the phone UI without starting `codex app-server` or `codex resume` when a message is sent.
-- Production builds are written to `build/`.
-- Set `LOOPILOT_ENABLE_CLI_FALLBACK=1` to allow `codex resume` fallback when the app-server bridge fails. It is disabled by default to avoid duplicate sends after partial app-server failures. On Windows, fallback refuses `.cmd` shell wrappers for remote messages; set `LOOPILOT_CODEX_COMMAND` to a real `codex.exe` if fallback is needed.
-- Avoid sharing the public URL; it can control local Codex sessions while the server is running.
+```powershell
+$env:LOOPILOT_TUNNEL_MODE = "custom"
+$env:LOOPILOT_TUNNEL_COMMAND = "ngrok"
+$env:LOOPILOT_TUNNEL_ARGS = '["http", "{PORT}"]'
+$env:LOOPILOT_TUNNEL_URL = "https://your-fixed-domain.example.com"
+npx loopilot --tunnel custom
+```
+
+`LOOPILOT_TUNNEL_ARGS` 必须是 JSON 数组，支持 `{PORT}` 和 `{LOCAL_URL}` 占位符；`LOOPILOT_TUNNEL_URL` 用于无法从隧道进程输出中自动识别地址的场景。普通模式默认不启动任何隧道。
+
+验收流程记录在 `docs/ACCEPTANCE_RUNBOOK.md`。
+
+## 注意事项
+
+- 访问 token 存在 LooPilot 状态目录，也可以用 `LOOPILOT_TOKEN` 指定。
+- 配对码存在 LooPilot 状态目录，也可以用 `LOOPILOT_PAIRING_CODE` 指定。
+- 默认状态目录是项目下的 `.loopilot`；如果不可写，会回退到用户状态目录，再回退到系统临时目录。可以用 `LOOPILOT_STATE_DIR` 显式指定。
+- 设置 `LOOPILOT_BRIDGE_MODE=queue` 后，发送手机消息时只测试手机 UI，不启动 `codex app-server` 或 `codex resume`。
+- 生产构建输出到 `build/`。
+- 设置 `LOOPILOT_ENABLE_CLI_FALLBACK=1` 可以在 app-server bridge 失败时允许 `codex resume` fallback。默认禁用，以避免 app-server 部分失败后造成重复发送。Windows 上 fallback 会拒绝 `.cmd` shell wrapper；如果确实需要 fallback，请把 `LOOPILOT_CODEX_COMMAND` 设置成真实的 `codex.exe`。
+- 不要随意分享公网 URL。服务运行期间，这个 URL 可以控制本地 Codex 会话。

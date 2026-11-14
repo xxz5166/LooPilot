@@ -1,0 +1,61 @@
+appId: com.loopilot.recvt
+productName: LooPilot-recvt
+executableName: LooPilot-recvt
+asar: true
+electronDist: node_modules/electron/dist
+extraMetadata:
+  main: dist-electron/main.js
+  name: loopilot
+  version: 0.1.0
+files:
+  - "**/*"
+  - "!node_modules/**/*"
+  - "!dist/**/*"
+  - "!dist-recvt/**/*"
+  - "!dist-electron/win-unpacked/**/*"
+  - "!electron/renderer/src/**/*"
+  - "!electron/vite.config.ts"
+  - "!server/**/*"
+  - "!bin/**/*"
+  - "!public/**/*"
+  - "!build/**/*"
+  - "!android/**/*"
+  - "!agentdock/**/*"
+  - "!desktop-panel/**/*"
+  - "!src/**/*"
+extraResources:
+  - from: server
+    to: loopilot/server
+  - from: bin
+    to: loopilot/bin
+  - from: build
+    to: loopilot/build
+  - from: public
+    to: loopilot/public
+  - from: package.json
+    to: loopilot/package.json
+  - from: desktop-version.json
+    to: loopilot/desktop-version.json
+  - from: node_modules
+    to: loopilot/node_modules
+  - from: runtime
+    to: runtime
+    filter:
+      - node.exe
+directories:
+  app: .tmp/electron-app
+  output: dist-recvt
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  artifactName: LooPilot-Setup.exe
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  runAfterFinish: true
+portable:
+  artifactName: LooPilot-Portable.exe

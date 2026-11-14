@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { get as httpGet } from "node:http";
 import https from "node:https";
+import crypto from "node:crypto";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -13,7 +14,7 @@ const CLOUDFLARED_VERSION = "latest";
 const DOWNLOAD_TIMEOUT_MS = 90000;
 
 export async function startPublicTunnel(port, options = {}) {
-  const localUrl = `http://localhost:${port}`;
+  const localUrl = `http://127.0.0.1:${port}`;
   if (process.env.LOOPILOT_FAKE_TUNNEL_URL) {
     console.log(`Public URL: ${process.env.LOOPILOT_FAKE_TUNNEL_URL}`);
     await options.onUrl?.(process.env.LOOPILOT_FAKE_TUNNEL_URL);
@@ -30,6 +31,71 @@ export async function startPublicTunnel(port, options = {}) {
   pipeTunnelOutput(child, /https:\/\/(?!api\.)[a-z0-9-]+\.trycloudflare\.com/i, options.onUrl);
   pollMetricsForTunnelUrl(child, metricsAddress, options.onUrl);
   return child;
+}
+
+export async function startConfiguredTunnel(port, options = {}) {
+  const mode = String(options.mode || process.env.LOOPILOT_TUNNEL_MODE || "cloudflare").trim().toLowerCase();
+  if (mode === "none" || mode === "off" || mode === "disabled") return null;
+  if (mode === "cloudflare" || mode === "temporary" || mode === "public") {
+    return startPublicTunnel(port, options);
+  }
+  if (mode !== "custom") throw new Error(`Unsupported tunnel mode: ${mode}`);
+  return startCustomTunnel(port, options);
+}
+
+export function tunnelModeFromEnvironment() {
+  return String(process.env.LOOPILOT_TUNNEL_MODE || "none").trim().toLowerCase();
+}
+
+function startCustomTunnel(port, options = {}) {
+  const command = String(process.env.LOOPILOT_TUNNEL_COMMAND || "").trim();
+  if (!command) throw new Error("LOOPILOT_TUNNEL_COMMAND is required for custom tunnel mode");
+  const localUrl = `http://127.0.0.1:${port}`;
+  const args = readCustomTunnelArgs().map((arg) => String(arg)
+    .replaceAll("{PORT}", String(port))
+    .replaceAll("{LOCAL_URL}", localUrl)
+    .replaceAll("{LOCAL_HOST}", "127.0.0.1")
+    .replaceAll("${PORT}", String(port))
+    .replaceAll("${LOCAL_URL}", localUrl)
+    .replaceAll("${LOCAL_HOST}", "127.0.0.1"));
+  if (/\.cmd$/i.test(command)) throw new Error("Custom tunnel must be a real executable, not a .cmd shell wrapper");
+  const child = spawn(command, args, {
+    cwd: process.env.LOOPILOT_TUNNEL_CWD || process.cwd(),
+    env: { ...process.env, LOOPILOT_LOCAL_URL: localUrl },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+    shell: false
+  });
+  const urlPattern = /https?:\/\/[^\s"'<>]+/i;
+  pipeTunnelOutput(child, urlPattern, options.onUrl);
+  const configuredUrl = normalizeTunnelUrl(process.env.LOOPILOT_TUNNEL_URL || "");
+  if (configuredUrl) {
+    console.log(`Public URL: ${configuredUrl}`);
+    queueMicrotask(() => options.onUrl?.(configuredUrl));
+  }
+  return child;
+}
+
+function readCustomTunnelArgs() {
+  const raw = String(process.env.LOOPILOT_TUNNEL_ARGS || "").trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // Fall back to a small shell-like parser for simple command lines.
+  }
+  return raw.match(/"[^"]*"|'[^']*'|\S+/g)?.map((item) => item.replace(/^['"]|['"]$/g, "")) || [];
+}
+
+function normalizeTunnelUrl(value) {
+  try {
+    const url = new URL(String(value).trim());
+    if (!["http:", "https:"].includes(url.protocol)) return "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return "";
+  }
 }
 
 export async function ensureCloudflaredBinary() {
@@ -57,6 +123,7 @@ export async function ensureCloudflaredBinary() {
     fs.rmSync(`${archiveTarget}.download`, { force: true });
     try {
       await downloader.fn();
+      await verifyDownloadedFile(archiveTarget, url);
       if (archiveTarget !== target) await extractCloudflaredArchive(archiveTarget, target);
       if (process.platform !== "win32") fs.chmodSync(target, 0o755);
       if (await isUsableCloudflaredBinary(target)) return target;
@@ -67,6 +134,19 @@ export async function ensureCloudflaredBinary() {
     }
   }
   throw lastError;
+}
+
+async function verifyDownloadedFile(filePath, assetUrl) {
+  const configured = String(process.env.LOOPILOT_CLOUDFLARED_SHA256 || "").trim().toLowerCase();
+  let expected = configured;
+  if (!expected) {
+    const response = await fetch(`${assetUrl}.sha256`);
+    if (!response.ok) throw new Error("cloudflared SHA-256 checksum is unavailable; download refused");
+    expected = (await response.text()).match(/[a-f0-9]{64}/i)?.[0]?.toLowerCase() || "";
+  }
+  if (!/^[a-f0-9]{64}$/.test(expected)) throw new Error("invalid cloudflared SHA-256 checksum");
+  const actual = crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+  if (actual !== expected) throw new Error(`cloudflared SHA-256 mismatch: expected ${expected}, got ${actual}`);
 }
 
 function cloudflaredFilename() {

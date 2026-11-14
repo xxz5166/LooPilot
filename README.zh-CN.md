@@ -2,7 +2,7 @@
 
 Codex Desktop 会话的手机端伴侣。
 
-语言：[English](README.md) | 简体中文
+语言：简体中文 | [English](README.en-US.md)
 
 ## 我为什么做这个
 
@@ -19,6 +19,31 @@ Codex Desktop 会话的手机端伴侣。
 所以 LooPilot 暂时会停留在一个“实用伴侣”的定位，而不是完美的移动版 Codex。它对我自己的“看一眼、推一把、处理一下授权”工作流已经够用。也许有人正好有类似的 Android + Windows 使用场景，可以拿去试试；如果遇到问题或有更适合的工作流，欢迎提 Issue。
 
 ## 运行
+
+## Windows 一键安装
+
+发布页提供 `LooPilot-Setup.exe` 和 `LooPilot-Portable.exe`。安装版双击即可安装，便携版可直接运行。两种版本都内置独立 Node.js Runtime，新电脑不需要预先安装 Node.js。
+
+控制面板支持本地模式、公网模式和 Safe 队列模式。公网模式首次需要用户确认风险；缺少 `cloudflared` 时，程序只会在用户确认启动公网模式后通过 HTTPS 下载并校验 SHA-256，不会修改 PATH、防火墙或申请管理员权限。
+
+默认本机地址使用 `http://127.0.0.1:4317`，不会使用 `localhost`。安装后可在 `%APPDATA%\LooPilot\config.json` 配置端口、监听地址和内网穿透程序。
+
+## 构建 Windows 控制面板
+
+在 Windows x64 环境执行：
+
+```powershell
+npm install
+npm run check:desktop
+npm run build:win
+```
+
+`build:win` 会下载并校验独立 Node.js Runtime，构建 React/Electron 控制面板，复用现有 `server`、`build`、`public` 和 `bin`，并生成：
+
+- `dist-recvt/LooPilot-Setup.exe`
+- `dist-recvt/LooPilot-Portable.exe`
+
+每次成功构建后都会递增 `desktop-version.json` 中的 `v0.x` 构建号。打包入口是 Electron 主进程，LooPilot 服务由内置 `runtime/node.exe` 启动，不会把 Electron 主程序当作普通 Node.exe 使用。
 
 不下载源码，直接运行：
 
@@ -96,7 +121,21 @@ npm run accept:bridge
 
 LooPilot 会读取 `~/.codex` 下的 Codex Desktop session JSONL 文件，把变化推送到 Web UI，并通过本地 `codex app-server` WebSocket bridge 发送手机端消息。Bridge 活动也会记录在 LooPilot 状态目录里。
 
-默认本地地址：`http://localhost:4317`。
+默认本地地址：`http://127.0.0.1:4317`。
+
+## 自定义隧道和内网穿透
+
+除了临时 Cloudflare Tunnel，还可以使用 frp、ngrok、ssh 反向转发、Tailscale Funnel 或其他程序。设置以下环境变量后运行 `--tunnel custom`：
+
+```powershell
+$env:LOOPILOT_TUNNEL_MODE = "custom"
+$env:LOOPILOT_TUNNEL_COMMAND = "ngrok"
+$env:LOOPILOT_TUNNEL_ARGS = '["http", "{PORT}"]'
+$env:LOOPILOT_TUNNEL_URL = "https://your-fixed-domain.example.com"
+npx loopilot --tunnel custom
+```
+
+`LOOPILOT_TUNNEL_ARGS` 必须是 JSON 数组，支持 `{PORT}` 和 `{LOCAL_URL}` 占位符；`LOOPILOT_TUNNEL_URL` 用于无法从隧道进程输出中自动识别地址的场景。普通模式默认不启动任何隧道。
 
 验收流程记录在 `docs/ACCEPTANCE_RUNBOOK.md`。
 

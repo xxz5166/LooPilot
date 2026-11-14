@@ -51,11 +51,12 @@ test("local server exposes token-protected sessions, websocket sync, and queue s
   try {
     await waitFor(() => stdout.includes("Pairing QR"), 10000, () => stderr || stdout);
     assert.match(stdout, new RegExp(`token=${token}`));
-    assert.match(stdout, new RegExp(`Pairing QR \\(http://localhost:${port}\\):`));
+    assert.match(stdout, new RegExp(`Pairing QR \\(http://127\\.0\\.0\\.1:${port}\\):`));
 
     const health = await requestJson(port, "/api/health");
     assert.equal(health.status, 200);
     assert.equal(health.body.ok, true);
+    assert.equal(health.body.localUrl, `http://127.0.0.1:${port}`);
     assert.equal("codexHome" in health.body, false);
 
     const pair = await requestJson(port, "/api/pair", "", {

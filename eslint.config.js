@@ -6,9 +6,14 @@ export default [
     ignores: [
       "build/**",
       "dist/**",
+      "dist-electron/**",
+      "dist-recvt/**",
+      "electron/renderer-dist/**",
       "node_modules/**",
       ".loopilot/**",
       ".tmp/**",
+      ".tools/**",
+      "wails-app/**",
       "android/build/**",
       "android/app/build/**",
       "android/app/src/main/assets/**"

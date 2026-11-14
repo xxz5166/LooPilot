@@ -1,0 +1,121 @@
+.about-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 16px;
+}
+
+.about-brand-panel {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.about-logo {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #fff;
+  background: #387997;
+}
+
+.about-brand-panel h2 {
+  margin: 16px 0 4px;
+  color: #2d444e;
+  font-size: 21px;
+}
+
+.about-brand-panel p {
+  margin: 0;
+  color: #819098;
+  font-size: 12px;
+}
+
+.about-version {
+  margin-top: 18px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  color: #337b9b;
+  background: #edf6f8;
+  font-size: 11px;
+}
+
+.about-info-panel {
+  min-height: 220px;
+}
+
+.about-list {
+  display: grid;
+  gap: 1px;
+}
+
+.about-list .info-row {
+  min-height: 42px;
+}
+
+.about-list .info-row strong {
+  color: #435963;
+  font-size: 12px;
+}
+
+.about-links {
+  margin-top: 16px;
+}
+
+.about-description {
+  margin: 0 0 16px;
+  color: #819098;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.about-link-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.about-link-grid button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 10px 12px;
+  text-align: left;
+  color: #337b9b;
+}
+
+.about-link-grid button > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.about-link-grid button strong,
+.about-link-grid button small {
+  display: block;
+}
+
+.about-link-grid button strong {
+  color: #405861;
+  font-size: 12px;
+}
+
+.about-link-grid button small {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #89979d;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .about-grid,
+  .about-link-grid {
+    grid-template-columns: 1fr;
+  }
+}

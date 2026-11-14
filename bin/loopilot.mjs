@@ -35,6 +35,7 @@ Usage:
 
 Options:
   --public     Start a temporary Cloudflare tunnel.
+  --tunnel MODE Start a tunnel using cloudflare, custom, or none.
   --safe       Queue phone messages without starting Codex bridge processes.
   --dev        Use Vite development middleware instead of the production build.
   --prod       Serve the production build. This is the default for npx/npm.
@@ -44,6 +45,7 @@ Options:
 Examples:
   npx loopilot
   npx loopilot --public
+  npx loopilot --tunnel custom
   npx loopilot --safe
 `);
 }
